@@ -31,6 +31,7 @@ enum Commands {
     /// Apply low-latency registry & input response tweaks
     Tune,
     /// Display live hardware topology, timer resolution, and memory stats
+    #[command(alias = "status")]
     Stats,
     /// Run as a background optimization daemon
     Daemon,
