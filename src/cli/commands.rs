@@ -151,18 +151,25 @@ pub fn handle_service(action: &str) {
 
             TerminalUi::print_header("Registering Windows Background Service");
 
-            // Install & start Windows Native Service (SCM)
+            // Install & start Windows Native Service (SCM) — handles boot autostart invisibly
             match service::install_service() {
-                Ok(_) => TerminalUi::print_success("Windows Service (SmartSystemManager) installed and started."),
-                Err(e) => TerminalUi::print_warning(&format!("Service install failed ({}). Falling back to autostart.", e)),
+                Ok(_) => {
+                    TerminalUi::print_success("Windows Service (SmartSystemManager) installed and started.");
+                    TerminalUi::print_success("Boot autostart enabled (via Windows Service Manager).");
+
+                    // Remove any leftover Registry Run key to prevent duplicate console window on boot
+                    let _ = StartupManager::disable_autostart();
+                }
+                Err(e) => {
+                    TerminalUi::print_warning(&format!("Service install failed ({}). Falling back to registry autostart.", e));
+                    let _ = StartupManager::enable_autostart();
+                    TerminalUi::print_success("Boot autostart enabled (via Registry Run key).");
+                }
             }
 
-            // Also enable registry Run key as a fallback autostart
             let mut config = Config::load();
-            let _ = StartupManager::enable_autostart();
             config.autostart_on_boot = true;
             let _ = config.save();
-            TerminalUi::print_success("Boot autostart enabled.");
 
             TerminalUi::print_header("Installation Complete");
             TerminalUi::print_info("ssm will now start automatically every time Windows boots.");
