@@ -3,8 +3,9 @@
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-blue.svg)](https://microsoft.com)
+[![Build](https://img.shields.io/github/actions/workflow/status/thisath111/ssm/release.yml?label=build)](https://github.com/thisath111/ssm/releases/latest)
 
-A production-grade, ultra-low latency Windows performance optimizer and background daemon written entirely in **100% Native Rust**. `ssm` combines sub-millisecond Win32 timer resolution, P-Core/E-Core CPU affinity pinning, zero-copy Standby memory purging, NVMe storage acceleration, and a Zero-Crash OS Guard.
+A production-grade, ultra-low latency Windows performance optimizer and background daemon written entirely in **100% Native Rust**. `ssm` combines sub-millisecond Win32 timer resolution, AI-assisted process scheduling, GPU MSI-X interrupt tuning, zero-copy RAM purging, and an Anti-Hang Stability Shield — all running silently in the background.
 
 ---
 
@@ -16,7 +17,7 @@ Run this single command in an **Administrator PowerShell** to automatically down
 irm https://raw.githubusercontent.com/thisath111/ssm/main/install.ps1 | iex
 ```
 
-> **Note:** `ssm service install` is automatically called at the end of the installer. You do **not** need to run it manually.
+> **Note:** The installer automatically handles everything. You do **not** need to run `ssm service install` manually.
 
 ---
 
@@ -31,9 +32,8 @@ If you prefer to set up `ssm` manually:
      ```powershell
      [Environment]::SetEnvironmentVariable("Path", "$([Environment]::GetEnvironmentVariable('Path', 'User'));C:\ssm", "User")
      ```
-   - **Windows GUI:** Press `Win + R` → type `sysdm.cpl` → **Advanced** → **Environment Variables** → Select **Path** under User variables → **Edit** → **New** → type `C:\ssm` → **OK**.
 4. **Restart** your PowerShell / Command Prompt so the new PATH takes effect.
-5. **Run the service installation command** (required — registers Windows Service and enables boot autostart):
+5. **Run the service installation command:**
    ```powershell
    ssm service install
    ```
@@ -44,21 +44,35 @@ After step 5, `ssm` will start automatically every time Windows boots.
 
 ## ✨ Features
 
-- **⚡ Sub-Millisecond Input Latency (0.5ms):** Direct NT API timer resolution (`NtSetTimerResolution(5000)`), mouse acceleration bypass, and Win32 priority quantum tuning (`Win32PrioritySeparation = 0x26`).
-- **🧠 Mathematical Predictive Core:** Integrated PID Control Loop, 1D Kalman Filtering for workload estimation, and Page Fault Rate Calculus (\( \frac{dPF}{dt} \)).
-- **🛡️ Zero-Crash OS Guard:** System handle leak auditing (>10,000 handles) and core immunity shield protecting critical Windows processes (`csrss`, `lsass`, `dwm`, `winlogon`).
-- **🏎️ CPU & Core Topology Affinity:** Detects P-Cores vs E-Cores / AMD CCX structures via `GetLogicalProcessorInformationEx` and pins background hogs away from performance cores.
-- **🎮 GPU & DirectX Optimization:** Hardware-Accelerated GPU Scheduling (HAGS) tuning, DirectX/DWM GPU priority escalation, and game task profile boosting.
-- **🧹 RAM & Storage Acceleration:** Zero-copy Standby Memory purging, rate-limited WorkingSet compression, NVMe queue depth tuning, and NTFS MFT cache maximization.
+### ⚡ Ultra-Low Latency Engine
+- **Sub-Millisecond Timer Resolution (0.5ms):** Direct NT API timer resolution (`NtSetTimerResolution(5000)`), mouse acceleration bypass, and Win32 priority quantum tuning (`Win32PrioritySeparation = 0x26`).
+- **GPU MSI-X Interrupt Optimization:** Forces GPU and Network adapters to use Message Signaled Interrupts (MSI) instead of legacy line-based IRQs — completely eliminates DPC Latency spikes and micro-stutters in games.
+
+### 🤖 AI-Assisted Smart Process Scheduler
+- **App Launch Accelerator:** Detects newly launched processes in real-time and instantly boosts them to `HIGH_PRIORITY_CLASS` for 3 seconds, making every application snap open instantly.
+- **Background Burst Throttling:** Automatically detects and throttles known CPU/disk-hogging Windows background services (`TiWorker.exe`, `compattelrunner.exe`, `MoUsoCoreWorker.exe`, etc.) to `IDLE_PRIORITY_CLASS` — eliminating the "internet-on" freeze effect.
+- **Dynamic Foreground Focus:** Pins the active window's process to P-Cores and gives it maximum I/O priority at all times.
+
+### 🛡️ Anti-Hang Stability Shield
+- **Explorer Auto-Rescue:** Monitors `explorer.exe` via `IsHungAppWindow`. If the Windows Taskbar freezes (e.g. due to a damaged USB drive), `ssm` automatically kills and restarts it within seconds — your desktop is never stuck.
+- **Bad USB / I/O Deadlock Prevention:** Detects disk I/O deadlocks from damaged removable media and deprioritizes their I/O load before it can freeze the entire OS.
+- **Zero-Crash OS Guard:** System handle leak auditing (>10,000 handles) and core immunity shield protecting critical Windows processes (`csrss`, `lsass`, `dwm`, `winlogon`).
+
+### 🏎️ CPU & Memory Optimization
+- **P-Core / E-Core Topology Affinity:** Detects P-Cores vs E-Cores via `GetLogicalProcessorInformationEx` and pins background hogs to E-Cores, freeing P-Cores for your active workload.
+- **Mathematical Predictive Core:** Integrated PID Control Loop and 1D Kalman Filter for workload estimation and proactive resource allocation.
+- **RAM & Storage Acceleration:** Zero-copy Standby Memory purging, rate-limited WorkingSet compression, NVMe queue depth tuning, and NTFS MFT cache maximization.
+
+### 🔧 System Tweaks
+- **Fast Shutdown:** Reduces `WaitToKillServiceTimeout` and `WaitToKillAppTimeout` to 2 seconds and enables `AutoEndTasks` — so your PC shuts down in seconds, not minutes.
+- **Network Optimization:** TCP NoDelay / Nagle Algorithm bypass, QoS DSCP CS1 packet prioritization, and Network Throttling Index removal.
+- **Telemetry & Search Cleanup:** Disables Windows Telemetry, Cortana, and Search Indexer spikes that cause random CPU usage bursts.
 
 ---
 
 ## 💻 CLI Usage
 
 ```powershell
-# Display help and available commands
-ssm --help
-
 # Display live system hardware status, timer resolution & Kalman load
 ssm stats
 
@@ -68,7 +82,7 @@ ssm boost
 # Purge Standby memory list & clean temp storage files
 ssm clean
 
-# Apply low-latency system registry tweaks
+# Apply low-latency system registry tweaks (MSI Mode, Fast Shutdown, etc.)
 ssm tune
 
 # Run as a background optimization daemon
@@ -80,6 +94,9 @@ ssm service uninstall
 
 # Complete uninstallation (reverts tweaks, removes service/autostart/PATH, deletes C:\ssm)
 ssm uninstall
+
+# Display help and available commands
+ssm --help
 ```
 
 ---
@@ -102,6 +119,8 @@ cargo build --release
 ```
 
 The release binary will be available at `./target/release/ssm.exe`.
+
+> **Note:** The official release binary is built on GitHub Actions with `target-cpu=native` optimizations for maximum performance.
 
 ---
 
