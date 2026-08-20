@@ -28,6 +28,31 @@ impl RegistryTweaker {
             let _ = key.set_value("DisableSearchBoxSuggestions", &1u32);
         }
 
+        // 4. Force MSI (Message Signaled Interrupts) Mode for GPU/Network to lower DPC Latency
+        let pci_path = r"SYSTEM\CurrentControlSet\Enum\PCI";
+        if let Ok(pci_key) = hklm.open_subkey_with_flags(pci_path, KEY_READ) {
+            for device in pci_key.enum_keys().filter_map(|k| k.ok()) {
+                if let Ok(dev_key) = pci_key.open_subkey_with_flags(&device, KEY_READ) {
+                    for instance in dev_key.enum_keys().filter_map(|k| k.ok()) {
+                        let inst_path = format!("{}\\{}", device, instance);
+                        if let Ok(inst_key) = pci_key.open_subkey_with_flags(&inst_path, KEY_READ) {
+                            let class_guid: String = inst_key.get_value("ClassGUID").unwrap_or_default();
+                            // GPU: {4D36E968-E325-11CE-BFC1-08002BE10318}
+                            // Network: {4D36E972-E325-11CE-BFC1-08002BE10318}
+                            if class_guid.eq_ignore_ascii_case("{4d36e968-e325-11ce-bfc1-08002be10318}") ||
+                               class_guid.eq_ignore_ascii_case("{4d36e972-e325-11ce-bfc1-08002be10318}") {
+                                
+                                let msi_path = format!("{}\\{}", inst_path, r"Device Parameters\Interrupt Management\MessageSignaledInterruptProperties");
+                                if let Ok((msi_key, _)) = pci_key.create_subkey_with_flags(&msi_path, KEY_ALL_ACCESS) {
+                                    let _ = msi_key.set_value("MSISupported", &1u32);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 }
