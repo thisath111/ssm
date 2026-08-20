@@ -2,12 +2,12 @@
 $ErrorActionPreference = 'Stop'
 
 Clear-Host
-Write-Host "  ███████╗███████╗███╗   ███╗  v1.0.0" -ForegroundColor Cyan
-Write-Host "  ██╔════╝██╔════╝████╗ ████║  High-Performance Windows System Optimizer" -ForegroundColor Cyan
-Write-Host "  ███████╗███████╗██╔████╔██║  Open-Source Native Rust CLI" -ForegroundColor Cyan
-Write-Host "  ╚════██║╚════██║██║╚██╔╝██║  https://github.com/thisath111/ssm" -ForegroundColor Cyan
-Write-Host "  ███████║███████║██║ ╚═╝ ██║" -ForegroundColor Cyan
-Write-Host "  ╚══════╝╚══════╝╚═╝     ╚═╝`n" -ForegroundColor Cyan
+Write-Host "  ███████╗███████╗███╗   ███╗  v1.0.0"
+Write-Host "  ██╔════╝██╔════╝████╗ ████║  High-Performance Windows System Optimizer"
+Write-Host "  ███████╗███████╗██╔████╔██║  Open-Source Native Rust CLI"
+Write-Host "  ╚════██║╚════██║██║╚██╔╝██║  https://github.com/thisath111/ssm"
+Write-Host "  ███████║███████║██║ ╚═╝ ██║"
+Write-Host "  ╚══════╝╚══════╝╚═╝     ╚═╝`n"
 
 # Check for Administrator Privileges
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
