@@ -148,7 +148,7 @@ pub fn handle_service(action: &str) {
                 return;
             }
 
-            TerminalUi::print_header("Installing Smart System Manager");
+            TerminalUi::print_header("Registering Windows Background Service");
 
             // Install & start Windows Native Service (SCM)
             match service::install_service() {
