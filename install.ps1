@@ -43,18 +43,27 @@ if (!(Test-Path -Path $installDir)) {
 
 # 3. Download Binary
 Write-Host "  [*] Downloading highly-optimized Windows binary..." -ForegroundColor Cyan
-if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
-    & curl.exe -sSL -o "$exePath" "$downloadUrl"
-} else {
-    $webClient = New-Object System.Net.WebClient
-    $webClient.Headers.Add("User-Agent", "ssm-installer")
-    $webClient.DownloadFile($downloadUrl, $exePath)
+$downloadSuccess = $false
+
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri $downloadUrl -OutFile $exePath -UseBasicParsing -ErrorAction Stop
+    $downloadSuccess = $true
+} catch {
+    Write-Host "  [!] Primary download failed: $_" -ForegroundColor Yellow
+    Write-Host "  [*] Falling back to curl..." -ForegroundColor Cyan
+    if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+        & curl.exe -sSL -o "$exePath" "$downloadUrl"
+        if ($LASTEXITCODE -eq 0) { $downloadSuccess = $true }
+    }
 }
 
-if (Test-Path -Path $exePath) {
+if ($downloadSuccess -and (Test-Path -Path $exePath)) {
     Write-Host "  [+] Binary downloaded successfully." -ForegroundColor Green
 } else {
-    Write-Error "  [x] Failed to download ssm.exe"
+    Write-Host "`n  [x] ERROR: Failed to download ssm.exe!" -ForegroundColor Red
+    Write-Host "      Check your internet connection or GitHub availability." -ForegroundColor Yellow
+    return
 }
 
 # 4. PATH Registration

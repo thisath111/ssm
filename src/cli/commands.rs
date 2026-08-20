@@ -14,7 +14,6 @@ use crate::utils::{config::Config, nt_api, win32};
 use sysinfo::System;
 
 pub fn handle_boost() {
-    TerminalUi::print_banner();
     TerminalUi::print_header("Executing Ultimate Multi-Layered System Boost");
 
     if !win32::is_elevated() {
@@ -60,7 +59,6 @@ pub fn handle_boost() {
 }
 
 pub fn handle_clean() {
-    TerminalUi::print_banner();
     TerminalUi::print_header("Executing System Memory & Storage Cleanup");
 
     let ram_mgr = RamManager::new();
@@ -77,7 +75,6 @@ pub fn handle_clean() {
 }
 
 pub fn handle_tune() {
-    TerminalUi::print_banner();
     TerminalUi::print_header("Applying Low-Latency System Registry Tweaks");
 
     if let Ok(_) = RegistryTweaker::apply_performance_tweaks() {
@@ -92,7 +89,6 @@ pub fn handle_tune() {
 }
 
 pub fn handle_stats() {
-    TerminalUi::print_banner();
     TerminalUi::print_header("Live System & Hardware Status");
 
     let topology = CpuTopology::detect();
@@ -128,7 +124,6 @@ pub fn handle_stats() {
 }
 
 pub fn handle_daemon() {
-    TerminalUi::print_banner();
     TerminalUi::print_info("Starting Smart System Manager Background Optimization Daemon...");
     
     // Attempt to connect to Windows Service Control Manager (SCM)
@@ -146,7 +141,6 @@ pub fn handle_daemon() {
 }
 
 pub fn handle_service(action: &str) {
-    TerminalUi::print_banner();
     match action {
         "install" => {
             if !win32::is_elevated() {

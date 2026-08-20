@@ -64,7 +64,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Commands::Service { action }) => commands::handle_service(&action),
         Some(Commands::Uninstall) => commands::handle_service("uninstall"),
         None => {
-            // Default: display live status when no subcommand given
+            // Default: display live status with banner when no subcommand given
+            cli::ui::TerminalUi::print_banner();
             commands::handle_stats();
         }
     }
