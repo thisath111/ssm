@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use sysinfo::System;
 use crate::utils::{config::Config, win32};
 use crate::sensors::{
@@ -28,6 +28,8 @@ pub struct SystemEngine {
     pub kalman_cpu: KalmanPredictor,
     tick_count: u64,
     cached_audio_pids: HashSet<u32>,
+    active_pids: HashSet<u32>,
+    boosted_pids: HashMap<u32, u64>,
 }
 
 impl SystemEngine {
@@ -53,7 +55,13 @@ impl SystemEngine {
             kalman_cpu: KalmanPredictor::new(0.01, 0.1),
             tick_count: 0,
             cached_audio_pids: HashSet::new(),
+            active_pids: HashSet::new(),
+            boosted_pids: HashMap::new(),
         };
+
+        for (pid, _) in engine.sys.processes() {
+            engine.active_pids.insert(pid.as_u32());
+        }
 
         let _ = InputLatencyOptimizer::optimize_all();
         let _ = RegistryTweaker::apply_performance_tweaks();
@@ -76,7 +84,37 @@ impl SystemEngine {
             .map(|h| win32::get_process_id_from_hwnd(h))
             .unwrap_or(0);
 
-        // Tier 1: Fast Foreground Boost & High-Precision Timer Check (Every 1s tick)
+        // Tier 1: Fast Foreground Boost, App Launch Acceleration (Every 1s tick)
+        self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+
+        let mut current_pids = HashSet::new();
+        for (pid, process) in self.sys.processes() {
+            let p_u32 = pid.as_u32();
+            current_pids.insert(p_u32);
+
+            // New process detected (App Launch Acceleration)
+            if !self.active_pids.contains(&p_u32) {
+                let name = process.name().to_string_lossy();
+                if p_u32 > 4 && !StabilityShield::is_immune(p_u32, &name) {
+                    self.cpu_mgr.boost_process_priority(p_u32);
+                    self.boosted_pids.insert(p_u32, self.tick_count);
+                }
+            }
+        }
+        self.active_pids = current_pids;
+
+        // Revert expired launch boosts (after 3 seconds)
+        let mut expired = Vec::new();
+        for (&pid, &start_tick) in self.boosted_pids.iter() {
+            if self.tick_count.saturating_sub(start_tick) >= 3 {
+                expired.push(pid);
+            }
+        }
+        for pid in expired {
+            self.cpu_mgr.restore_process_priority(pid);
+            self.boosted_pids.remove(&pid);
+        }
+
         if foreground_pid > 4 && !StabilityShield::is_immune(foreground_pid, "") {
             IoScheduler::prioritize_foreground_process(foreground_pid);
             if self.config.enable_cpu_affinity {
@@ -87,7 +125,6 @@ impl SystemEngine {
         // Tier 2: Process Scan, Kalman Predictor & PID Balancing (Every 3s)
         if self.tick_count % 3 == 0 {
             self.sys.refresh_cpu_usage();
-            self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
             let raw_cpu = self.sys.global_cpu_usage();
             let estimated_cpu = self.kalman_cpu.update(raw_cpu);
@@ -126,6 +163,7 @@ impl SystemEngine {
 
                 if process.cpu_usage() > 15.0 {
                     IoScheduler::deprioritize_background_process(p_u32);
+                    self.cpu_mgr.throttle_process_priority(p_u32);
                     if self.config.enable_cpu_affinity {
                         self.cpu_mgr.pin_background(p_u32);
                     }

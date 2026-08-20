@@ -1,6 +1,9 @@
 use windows::core::GUID;
 use windows::Win32::System::Power::*;
-use windows::Win32::System::Threading::{SetProcessAffinityMask, OpenProcess, PROCESS_SET_INFORMATION};
+use windows::Win32::System::Threading::{
+    SetProcessAffinityMask, OpenProcess, SetPriorityClass,
+    PROCESS_SET_INFORMATION, HIGH_PRIORITY_CLASS, IDLE_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS
+};
 use windows::Win32::Foundation::CloseHandle;
 use crate::sensors::cpu_topology::CpuTopology;
 
@@ -78,6 +81,39 @@ impl CpuManager {
         unsafe {
             if let Ok(handle) = OpenProcess(PROCESS_SET_INFORMATION, false, pid) {
                 let _ = SetProcessAffinityMask(handle, self.topology.e_core_mask);
+                let _ = CloseHandle(handle);
+            }
+        }
+    }
+
+    /// Temporarily boost a process to High Priority (for fast app launches)
+    pub fn boost_process_priority(&self, pid: u32) {
+        if pid <= 4 { return; }
+        unsafe {
+            if let Ok(handle) = OpenProcess(PROCESS_SET_INFORMATION, false, pid) {
+                let _ = SetPriorityClass(handle, HIGH_PRIORITY_CLASS);
+                let _ = CloseHandle(handle);
+            }
+        }
+    }
+
+    /// Throttle a non-critical background process to Idle Priority
+    pub fn throttle_process_priority(&self, pid: u32) {
+        if pid <= 4 { return; }
+        unsafe {
+            if let Ok(handle) = OpenProcess(PROCESS_SET_INFORMATION, false, pid) {
+                let _ = SetPriorityClass(handle, IDLE_PRIORITY_CLASS);
+                let _ = CloseHandle(handle);
+            }
+        }
+    }
+
+    /// Restore a process to Normal Priority
+    pub fn restore_process_priority(&self, pid: u32) {
+        if pid <= 4 { return; }
+        unsafe {
+            if let Ok(handle) = OpenProcess(PROCESS_SET_INFORMATION, false, pid) {
+                let _ = SetPriorityClass(handle, NORMAL_PRIORITY_CLASS);
                 let _ = CloseHandle(handle);
             }
         }
