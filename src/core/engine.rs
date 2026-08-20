@@ -157,11 +157,17 @@ impl SystemEngine {
 
             for (pid, process) in self.sys.processes() {
                 let p_u32 = pid.as_u32();
-                if p_u32 == foreground_pid || p_u32 == self_pid || StabilityShield::is_immune(p_u32, &process.name().to_string_lossy()) {
+                let name = process.name().to_string_lossy().to_lowercase();
+                if p_u32 == foreground_pid || p_u32 == self_pid || StabilityShield::is_immune(p_u32, &name) {
                     continue;
                 }
 
-                if process.cpu_usage() > 15.0 {
+                // Aggressive Network Burst Throttling (Telemetry, Windows Update, Background Tasks)
+                let is_notorious = name == "compattelrunner.exe" || name == "tiworker.exe" 
+                                || name == "wermgr.exe" || name == "mousocoreworker.exe" 
+                                || name == "mrt.exe" || name == "backgroundtaskhost.exe";
+
+                if process.cpu_usage() > 15.0 || is_notorious {
                     IoScheduler::deprioritize_background_process(p_u32);
                     self.cpu_mgr.throttle_process_priority(p_u32);
                     if self.config.enable_cpu_affinity {

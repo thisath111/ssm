@@ -53,6 +53,20 @@ impl RegistryTweaker {
             }
         }
 
+        // 5. Fast Shutdown & Auto-End Tasks
+        let control_key = r"SYSTEM\CurrentControlSet\Control";
+        if let Ok((key, _)) = hklm.create_subkey_with_flags(control_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("WaitToKillServiceTimeout", &"2000");
+        }
+
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let desktop_key = r"Control Panel\Desktop";
+        if let Ok((key, _)) = hkcu.create_subkey_with_flags(desktop_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("AutoEndTasks", &"1");
+            let _ = key.set_value("WaitToKillAppTimeout", &"2000");
+            let _ = key.set_value("HungAppTimeout", &"2000");
+        }
+
         Ok(())
     }
 }
