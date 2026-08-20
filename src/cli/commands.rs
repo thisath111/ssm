@@ -130,11 +130,18 @@ pub fn handle_stats() {
 pub fn handle_daemon() {
     TerminalUi::print_banner();
     TerminalUi::print_info("Starting Smart System Manager Background Optimization Daemon...");
-    let config = Config::load();
-    let mut engine = crate::core::engine::SystemEngine::new(config);
-    loop {
-        engine.tick();
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+    
+    // Attempt to connect to Windows Service Control Manager (SCM)
+    if let Err(e) = crate::daemon::service::run_as_service() {
+        TerminalUi::print_info(&format!("Running in standalone console mode (SCM connect failed: {}).", e));
+        
+        // Fallback to standalone loop if not launched by Windows SCM
+        let config = Config::load();
+        let mut engine = crate::core::engine::SystemEngine::new(config);
+        loop {
+            engine.tick();
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+        }
     }
 }
 
