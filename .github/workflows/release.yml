@@ -1,0 +1,40 @@
+name: Build & Release Binary
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build Windows Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Install Stable Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Optimized Release Binary
+        run: cargo build --release
+
+      - name: Create or Update Pristine GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Smart System Manager ${{ github.ref_name }}"
+          generate_release_notes: true
+          files: target/release/ssm.exe
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

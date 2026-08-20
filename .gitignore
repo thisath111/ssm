@@ -1,0 +1,17 @@
+# Cargo build artifacts
+/target
+/target_build
+/build_dir
+
+# Executable binaries
+/*.exe
+*.exe
+
+# Logs & temp files
+/logs
+*.log
+
+# IDE files
+/.vscode
+/.idea
+.DS_Store

@@ -1,0 +1,66 @@
+[package]
+name = "ssm"
+version = "1.0.0"
+edition = "2021"
+description = "High-performance Windows System Optimizer & Low-Latency Daemon — 100% Native Rust"
+license = "MIT"
+repository = "https://github.com/thisath111/ssm"
+homepage = "https://github.com/thisath111/ssm"
+readme = "README.md"
+keywords = ["windows", "optimization", "latency", "system-manager", "rust"]
+categories = ["command-line-utilities", "os::windows-apis"]
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+sysinfo = "0.39.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+windows-service = "0.8.1"
+ntapi = "0.4.3"
+winreg = "0.55.0"
+log = "0.4"
+simplelog = "0.12.1"
+toml = "0.8.2"
+lazy_static = "1.4"
+
+[dependencies.windows]
+version = "0.62"
+features = [
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Foundation",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Memory",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_SystemInformation",
+    "Win32_System_LibraryLoader",
+    "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_Media",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Wmi",
+    "Win32_System_Ole",
+    "Win32_System_Variant",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Power",
+    "Win32_System_JobObjects",
+    "Win32_System_Registry",
+    "Win32_System_Services",
+    "Win32_NetworkManagement_QoS",
+    "Win32_System_Performance",
+]
+
+[build-dependencies]
+embed-resource = "3.0.9"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+overflow-checks = false
+panic = "abort"
