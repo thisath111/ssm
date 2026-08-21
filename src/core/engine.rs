@@ -1,4 +1,6 @@
 use std::collections::{HashSet, HashMap};
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use sysinfo::System;
 use crate::utils::{config::Config, win32};
 use crate::sensors::{
@@ -6,6 +8,7 @@ use crate::sensors::{
 };
 use crate::core::{
     cpu::CpuManager, dwm::DwmLatencyOptimizer, explorer_watchdog::ExplorerWatchdog,
+    freeze_guard::{FreezeGuard, FreezeGuardHeartbeat},
     gpu::GpuManager, input_latency::InputLatencyOptimizer, io_scheduler::IoScheduler,
     large_pages::LargePageOptimizer, math_engine::{KalmanPredictor, PidController},
     network::NetworkOptimizer, nvme_accelerator::NvmeAccelerator, ram::RamManager,
@@ -33,6 +36,8 @@ pub struct SystemEngine {
     pub ai_forecaster: PredictiveMemoryForecaster,
     pub ai_workload_state: WorkloadStateMachine,
     pub last_detected_intent: ProcessIntent,
+    heartbeat: Arc<FreezeGuardHeartbeat>,
+    _freeze_guard_handle: Option<std::thread::JoinHandle<()>>,
     tick_count: u64,
     cached_audio_pids: HashSet<u32>,
     active_pids: HashSet<u32>,
@@ -47,6 +52,10 @@ impl SystemEngine {
         win32::enable_privilege("SeDebugPrivilege");
         win32::enable_privilege("SeIncreaseBasePriorityPrivilege");
         LargePageOptimizer::enable_large_pages();
+
+        // Spawn FreezeGuard watchdog on a dedicated high-priority thread
+        let heartbeat = FreezeGuardHeartbeat::new();
+        let guard_handle = FreezeGuard::spawn(Arc::clone(&heartbeat));
 
         let mut engine = Self {
             sys,
@@ -64,6 +73,8 @@ impl SystemEngine {
             ai_forecaster: PredictiveMemoryForecaster::new(),
             ai_workload_state: WorkloadStateMachine::new(),
             last_detected_intent: ProcessIntent::InteractiveUi,
+            heartbeat,
+            _freeze_guard_handle: Some(guard_handle),
             tick_count: 0,
             cached_audio_pids: HashSet::new(),
             active_pids: HashSet::new(),
@@ -90,6 +101,9 @@ impl SystemEngine {
     /// Single optimization tick — executed by daemon/service loop every 1000ms.
     pub fn tick(&mut self) {
         self.tick_count += 1;
+
+        // Signal FreezeGuard that the main loop is alive
+        self.heartbeat.tick.store(self.tick_count, Ordering::Relaxed);
 
         let foreground_hwnd = win32::get_foreground_hwnd();
         let foreground_pid = foreground_hwnd

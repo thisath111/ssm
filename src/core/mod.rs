@@ -2,6 +2,7 @@ pub mod cpu;
 pub mod dwm;
 pub mod engine;
 pub mod explorer_watchdog;
+pub mod freeze_guard;
 pub mod gpu;
 pub mod input_latency;
 pub mod io_scheduler;

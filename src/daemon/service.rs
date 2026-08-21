@@ -114,6 +114,15 @@ pub fn install_service() -> Result<(), Box<dyn std::error::Error>> {
         .creation_flags(0x0800_0000)
         .output();
 
+    // Configure SCM to auto-restart ssm within 1 second if it crashes or stops unexpectedly.
+    // This ensures the FreezeGuard watchdog is always alive to protect the system.
+    // reset=60: reset failure counter after 60 seconds of successful running
+    // actions: restart after 1s, restart after 1s, restart after 1s (3 attempts)
+    let _ = std::process::Command::new("sc")
+        .args(["failure", SERVICE_NAME, "reset=60", "actions=restart/1000/restart/1000/restart/1000"])
+        .creation_flags(0x0800_0000)
+        .output();
+
     Ok(())
 }
 
