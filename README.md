@@ -1,23 +1,19 @@
 <div align="center">
 
-```text
-  ███████╗███████╗███╗   ███╗
-  ██╔════╝██╔════╝████╗ ████║   v1.0.0 (Next-Gen AI Release)
-  ███████╗███████╗██╔████╔██║   Autonomous Windows Kernel & Hardware Optimizer
-  ╚════██║╚════██║██║╚██╔╝██║   100% Native Rust · Zero-Overhead Daemon
-  ███████║███████║██║ ╚═╝ ██║   https://github.com/thisath111/ssm
-  ╚══════╝╚══════╝╚═╝     ╚═╝
-```
+# ⚡ Smart System Manager (`ssm`)
 
-# Smart System Manager (`ssm`)
+### **Autonomous AI-Driven Windows Subsystem & Kernel Performance Engine**
+*100% Native Rust · Zero-Overhead Background Daemon · Sub-Millisecond Latency*
 
-**Enterprise-Grade, AI-Driven Autonomous Windows Subsystem & Hardware Performance Daemon**
+<br/>
 
-[![Rust](https://img.shields.io/badge/language-Rust_2021-DEA584.svg?style=for-the-badge&logo=rust)](https://www.rust-lang.org/)
-[![Platform](https://img.shields.io/badge/platform-Windows_10_%7C_11_(x64)-0078D6.svg?style=for-the-badge&logo=windows)](https://www.microsoft.com/windows)
-[![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)](LICENSE)
-[![Tests](https://img.shields.io/badge/automated_tests-100%25_passing-brightgreen.svg?style=for-the-badge&logo=githubactions)](https://github.com/thisath111/ssm/actions)
-[![Latency](https://img.shields.io/badge/timer_resolution-0.5ms_sub--millisecond-blueviolet.svg?style=for-the-badge)](https://github.com/thisath111/ssm)
+[![Rust](https://img.shields.io/badge/Language-Rust_2021-DEA584.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
+[![Platform](https://img.shields.io/badge/Platform-Windows_10_%7C_11_(x64)-0078D6.svg?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+[![Tests](https://img.shields.io/badge/Tests-100%25_Passing-brightgreen.svg?style=flat-square&logo=githubactions)](https://github.com/thisath111/ssm/actions)
+[![Latency](https://img.shields.io/badge/Timer_Resolution-0.5ms_Sub--Millisecond-blueviolet.svg?style=flat-square)](https://github.com/thisath111/ssm)
+
+<br/>
 
 [Quick Install](#-1-line-quick-installation) • [Key Innovations](#-core-innovations) • [Architecture](#-architecture) • [CLI Manual](#-cli-command-reference) • [Building](#-building-from-source)
 
