@@ -167,7 +167,9 @@ impl SystemEngine {
                                 || name == "wermgr.exe" || name == "mousocoreworker.exe" 
                                 || name == "mrt.exe" || name == "backgroundtaskhost.exe";
 
-                if process.cpu_usage() > 15.0 || is_notorious {
+                // Only permanently throttle notorious telemetry/update hogs. 
+                // Do NOT throttle based on arbitrary CPU usage, as that ruins background apps (OBS, Discord, etc).
+                if is_notorious {
                     IoScheduler::deprioritize_background_process(p_u32);
                     self.cpu_mgr.throttle_process_priority(p_u32);
                     if self.config.enable_cpu_affinity {
