@@ -5,12 +5,16 @@ use crate::sensors::{
     audio::AudioSensor, disk_pressure::DiskPressureSensor, gaming::GamingSensor,
 };
 use crate::core::{
-    cpu::CpuManager, explorer_watchdog::ExplorerWatchdog, gpu::GpuManager,
-    input_latency::InputLatencyOptimizer, io_scheduler::IoScheduler,
-    math_engine::{KalmanPredictor, PidController}, network::NetworkOptimizer,
-    nvme_accelerator::NvmeAccelerator, ram::RamManager, registry_tweaker::RegistryTweaker,
-    service_tuner::ServiceTuner, stability_shield::StabilityShield,
-    timer_resolution::TimerResolutionManager,
+    cpu::CpuManager, dwm::DwmLatencyOptimizer, explorer_watchdog::ExplorerWatchdog,
+    gpu::GpuManager, input_latency::InputLatencyOptimizer, io_scheduler::IoScheduler,
+    large_pages::LargePageOptimizer, math_engine::{KalmanPredictor, PidController},
+    network::NetworkOptimizer, nvme_accelerator::NvmeAccelerator, ram::RamManager,
+    registry_tweaker::RegistryTweaker, service_tuner::ServiceTuner,
+    stability_shield::StabilityShield, timer_resolution::TimerResolutionManager,
+};
+use crate::ai::{
+    ProcessIntent, ProcessIntentClassifier, PredictiveMemoryForecaster,
+    SystemWorkloadState, WorkloadStateMachine,
 };
 
 pub struct SystemEngine {
@@ -26,6 +30,9 @@ pub struct SystemEngine {
     pub explorer_guard: ExplorerWatchdog,
     pub pid_controller: PidController,
     pub kalman_cpu: KalmanPredictor,
+    pub ai_forecaster: PredictiveMemoryForecaster,
+    pub ai_workload_state: WorkloadStateMachine,
+    pub last_detected_intent: ProcessIntent,
     tick_count: u64,
     cached_audio_pids: HashSet<u32>,
     active_pids: HashSet<u32>,
@@ -39,6 +46,7 @@ impl SystemEngine {
 
         win32::enable_privilege("SeDebugPrivilege");
         win32::enable_privilege("SeIncreaseBasePriorityPrivilege");
+        LargePageOptimizer::enable_large_pages();
 
         let mut engine = Self {
             sys,
@@ -53,6 +61,9 @@ impl SystemEngine {
             explorer_guard: ExplorerWatchdog::new(),
             pid_controller: PidController::new(1.2, 0.1, 0.05, 0.0, 100.0),
             kalman_cpu: KalmanPredictor::new(0.01, 0.1),
+            ai_forecaster: PredictiveMemoryForecaster::new(),
+            ai_workload_state: WorkloadStateMachine::new(),
+            last_detected_intent: ProcessIntent::InteractiveUi,
             tick_count: 0,
             cached_audio_pids: HashSet::new(),
             active_pids: HashSet::new(),
@@ -65,6 +76,7 @@ impl SystemEngine {
 
         let _ = InputLatencyOptimizer::optimize_all();
         let _ = RegistryTweaker::apply_performance_tweaks();
+        let _ = DwmLatencyOptimizer::optimize_dwm_latency();
         let _ = NetworkOptimizer::disable_tcp_nagle();
         let _ = NvmeAccelerator::optimize_storage_stack();
 
@@ -84,13 +96,27 @@ impl SystemEngine {
             .map(|h| win32::get_process_id_from_hwnd(h))
             .unwrap_or(0);
 
-        // Tier 1: Fast Foreground Boost, App Launch Acceleration (Every 1s tick)
+        // Tier 1: Fast Foreground Boost, App Launch Acceleration & AI Intent Classification
         self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
         let mut current_pids = HashSet::new();
         for (pid, process) in self.sys.processes() {
             let p_u32 = pid.as_u32();
             current_pids.insert(p_u32);
+
+            let is_fg = p_u32 == foreground_pid;
+            if is_fg {
+                let name = process.name().to_string_lossy();
+                let mem_mb = process.memory() / (1024 * 1024);
+                let cpu_p = process.cpu_usage();
+                self.last_detected_intent = ProcessIntentClassifier::classify(
+                    &name,
+                    mem_mb,
+                    cpu_p,
+                    true,
+                    16,
+                );
+            }
 
             // New process detected (App Launch Acceleration)
             if !self.active_pids.contains(&p_u32) {
@@ -122,16 +148,35 @@ impl SystemEngine {
             }
         }
 
-        // Tier 2: Process Scan, Kalman Predictor & PID Balancing (Every 3s)
+        // Memory Momentum & Pre-emptive Standby Purging
+        self.ram_mgr.sensor.update();
+        let ram_used_p = self.ram_mgr.sensor.usage_percent;
+        self.ai_forecaster.record_and_predict(ram_used_p);
+
+        if self.config.enable_standby_purging && self.ai_forecaster.should_preemptively_purge(ram_used_p) {
+            self.ram_mgr.purge_standby_memory();
+        }
+
+        // Tier 2: Process Scan, Kalman Predictor & AI State Machine (Every 3s)
         if self.tick_count % 3 == 0 {
             self.sys.refresh_cpu_usage();
 
             let raw_cpu = self.sys.global_cpu_usage();
             let estimated_cpu = self.kalman_cpu.update(raw_cpu);
-            let pid_output = self.pid_controller.compute(80.0, estimated_cpu, 3.0);
+            let is_audio_active = !self.cached_audio_pids.is_empty();
 
-            let is_gaming = self.gaming_sensor.is_gaming_active(&self.sys) || estimated_cpu > 75.0 || pid_output < 0.0;
-            if is_gaming {
+            let state = self.ai_workload_state.evaluate(
+                estimated_cpu,
+                ram_used_p,
+                self.last_detected_intent,
+                is_audio_active,
+            );
+
+            let is_boost_needed = state == SystemWorkloadState::UltraGaming
+                || state == SystemWorkloadState::CreatorDeveloperBoost
+                || estimated_cpu > 75.0;
+
+            if is_boost_needed {
                 if self.config.enable_power_plan_boost {
                     self.cpu_mgr.enable_performance_mode();
                 }
@@ -146,7 +191,6 @@ impl SystemEngine {
                 ServiceTuner::restore_background_services();
             }
 
-            self.ram_mgr.sensor.update();
             let self_pid = std::process::id();
 
             // Audit handle leaks & deprioritize background hogs
@@ -206,9 +250,7 @@ impl SystemEngine {
                 self.disk_sensor.clean_temp_files();
             }
 
-            if self.config.enable_standby_purging
-                && self.ram_mgr.sensor.available_mb < 2000
-            {
+            if self.config.enable_standby_purging && self.ram_mgr.sensor.available_mb < 2000 {
                 self.ram_mgr.purge_standby_memory();
             }
         }

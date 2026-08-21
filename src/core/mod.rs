@@ -1,9 +1,11 @@
 pub mod cpu;
+pub mod dwm;
 pub mod engine;
 pub mod explorer_watchdog;
 pub mod gpu;
 pub mod input_latency;
 pub mod io_scheduler;
+pub mod large_pages;
 pub mod math_engine;
 pub mod network;
 pub mod nvme_accelerator;

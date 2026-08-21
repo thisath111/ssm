@@ -49,6 +49,14 @@ pub fn handle_boost() {
         TerminalUi::print_success("NVMe SSD Queue Depth & NTFS MFT Cache Acceleration Active");
     }
 
+    if let Ok(_) = crate::core::dwm::DwmLatencyOptimizer::optimize_dwm_latency() {
+        TerminalUi::print_success("Desktop Window Manager (DWM) DirectFlip Zero-Lag Presentation Active");
+    }
+
+    if crate::core::large_pages::LargePageOptimizer::enable_large_pages() {
+        TerminalUi::print_success("Kernel Large Pages Memory Privilege (SeLockMemoryPrivilege) Granted");
+    }
+
     ServiceTuner::pause_background_services();
     TerminalUi::print_success("Non-essential Background Services Throttled");
 
@@ -121,6 +129,26 @@ pub fn handle_stats() {
     let mut kalman = KalmanPredictor::new(0.01, 0.1);
     let estimate = kalman.update(sys.global_cpu_usage());
     TerminalUi::print_key_value("Kalman Estimated Load", &format!("{:.1}%", estimate));
+
+    let large_page_min = crate::core::large_pages::LargePageOptimizer::get_large_page_minimum();
+    let large_page_str = if large_page_min > 0 {
+        format!("{} MB (Hardware Supported)", large_page_min / (1024 * 1024))
+    } else {
+        "Disabled / Standard 4KB Pages".to_string()
+    };
+    TerminalUi::print_key_value("Kernel Large Pages (TLB)", &large_page_str);
+
+    // AI Intent Classification of current Foreground Process
+    if let Some(hwnd) = win32::get_foreground_hwnd() {
+        let fg_pid = win32::get_process_id_from_hwnd(hwnd);
+        if let Some(proc) = sys.process(sysinfo::Pid::from_u32(fg_pid)) {
+            let name = proc.name().to_string_lossy();
+            let mem_mb = proc.memory() / (1024 * 1024);
+            let cpu_p = proc.cpu_usage();
+            let intent = crate::ai::ProcessIntentClassifier::classify(&name, mem_mb, cpu_p, true, 16);
+            TerminalUi::print_key_value("Active App Intent (AI)", &format!("{} [{}]", name, intent.as_str()));
+        }
+    }
 }
 
 pub fn handle_daemon() {

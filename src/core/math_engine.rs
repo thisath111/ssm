@@ -110,3 +110,64 @@ impl PageFaultDerivator {
         self.prev_rate = current_rate;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pid_controller_convergence() {
+        let mut pid = PidController::new(0.5, 0.1, 0.05, -100.0, 100.0);
+        let setpoint = 50.0;
+        let mut measured = 10.0;
+
+        for _ in 0..20 {
+            let output = pid.compute(setpoint, measured, 1.0);
+            measured += output * 0.2; // simulate plant response
+        }
+
+        // Measured should move significantly closer to setpoint
+        assert!((setpoint - measured).abs() < 15.0);
+    }
+
+    #[test]
+    fn test_pid_clamping() {
+        let mut pid = PidController::new(10.0, 10.0, 10.0, -10.0, 10.0);
+        let output = pid.compute(100.0, 0.0, 1.0);
+        assert_eq!(output, 10.0);
+
+        let output_neg = pid.compute(-100.0, 0.0, 1.0);
+        assert_eq!(output_neg, -10.0);
+    }
+
+    #[test]
+    fn test_kalman_filter_smoothing() {
+        let mut kalman = KalmanPredictor::new(0.1, 0.5);
+        let noisy_measurements = [50.0, 70.0, 45.0, 65.0, 52.0, 48.0, 55.0];
+
+        let mut estimate = 0.0;
+        for &m in &noisy_measurements {
+            estimate = kalman.update(m);
+        }
+
+        // Estimate should smooth out the noisy fluctuations around ~50-55
+        assert!(estimate > 40.0 && estimate < 65.0);
+        assert_eq!(kalman.get_estimate(), estimate);
+    }
+
+    #[test]
+    fn test_page_fault_derivatives() {
+        let mut pfd = PageFaultDerivator::new();
+        pfd.update(1000, 1.0);
+        assert_eq!(pfd.first_derivative, 0.0); // first tick initializes
+
+        pfd.update(1100, 1.0);
+        assert_eq!(pfd.first_derivative, 100.0);
+        assert_eq!(pfd.second_derivative, 100.0);
+
+        pfd.update(1200, 1.0);
+        assert_eq!(pfd.first_derivative, 100.0);
+        assert_eq!(pfd.second_derivative, 0.0); // constant rate -> second derivative is 0
+    }
+}
+
