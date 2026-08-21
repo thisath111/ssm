@@ -34,7 +34,7 @@ impl RamManager {
             return 0;
         }
 
-        if self.sensor.level < RamPressureLevel::Warning {
+        if self.sensor.level < RamPressureLevel::Critical {
             return 0;
         }
 

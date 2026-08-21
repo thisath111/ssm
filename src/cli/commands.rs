@@ -57,7 +57,8 @@ pub fn handle_boost() {
         TerminalUi::print_success("Kernel Large Pages Memory Privilege (SeLockMemoryPrivilege) Granted");
     }
 
-    ServiceTuner::pause_background_services();
+    let mut tuner = ServiceTuner::new();
+    tuner.pause_background_services();
     TerminalUi::print_success("Non-essential Background Services Throttled");
 
     TerminalUi::print_header("Boost Summary");

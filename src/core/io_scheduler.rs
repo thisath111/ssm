@@ -46,4 +46,10 @@ impl IoScheduler {
         Self::set_io_priority(pid, 3);
         Self::set_page_priority(pid, 5);
     }
+
+    /// Restores a backgrounded process to normal I/O priority (2) and page priority (5).
+    pub fn restore_process_io(pid: u32) {
+        Self::set_io_priority(pid, 2);
+        Self::set_page_priority(pid, 5);
+    }
 }

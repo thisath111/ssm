@@ -41,7 +41,9 @@ pub struct SystemEngine {
     tick_count: u64,
     cached_audio_pids: HashSet<u32>,
     active_pids: HashSet<u32>,
-    boosted_pids: HashMap<u32, u64>,
+    boosted_pids: HashMap<u32, (u64, u32)>,
+    last_foreground_pid: u32,
+    pub service_tuner: ServiceTuner,
 }
 
 impl SystemEngine {
@@ -79,6 +81,8 @@ impl SystemEngine {
             cached_audio_pids: HashSet::new(),
             active_pids: HashSet::new(),
             boosted_pids: HashMap::new(),
+            last_foreground_pid: 0,
+            service_tuner: ServiceTuner::new(),
         };
 
         for (pid, _) in engine.sys.processes() {
@@ -136,8 +140,9 @@ impl SystemEngine {
             if !self.active_pids.contains(&p_u32) {
                 let name = process.name().to_string_lossy();
                 if p_u32 > 4 && !StabilityShield::is_immune(p_u32, &name) {
-                    self.cpu_mgr.boost_process_priority(p_u32);
-                    self.boosted_pids.insert(p_u32, self.tick_count);
+                    if let Some(orig_prio) = self.cpu_mgr.boost_process_priority(p_u32) {
+                        self.boosted_pids.insert(p_u32, (self.tick_count, orig_prio));
+                    }
                 }
             }
         }
@@ -145,21 +150,35 @@ impl SystemEngine {
 
         // Revert expired launch boosts (3s limit)
         let mut expired = Vec::new();
-        for (&pid, &start_tick) in self.boosted_pids.iter() {
+        for (&pid, &(start_tick, orig_prio)) in self.boosted_pids.iter() {
             if self.tick_count.saturating_sub(start_tick) >= 3 {
-                expired.push(pid);
+                expired.push((pid, orig_prio));
             }
         }
-        for pid in expired {
-            self.cpu_mgr.restore_process_priority(pid);
+        for (pid, orig_prio) in expired {
+            self.cpu_mgr.restore_process_priority(pid, orig_prio);
             self.boosted_pids.remove(&pid);
         }
 
-        if foreground_pid > 4 && !StabilityShield::is_immune(foreground_pid, "") {
-            IoScheduler::prioritize_foreground_process(foreground_pid);
-            if self.config.enable_cpu_affinity {
-                self.cpu_mgr.pin_foreground(foreground_pid);
+        if foreground_pid != self.last_foreground_pid {
+            // Restore I/O priority for the previous foreground process
+            if self.last_foreground_pid > 4 {
+                IoScheduler::restore_process_io(self.last_foreground_pid);
             }
+            
+            // Prioritize the new foreground process
+            if foreground_pid > 4 {
+                let foreground_name = self.sys.process(sysinfo::Pid::from_u32(foreground_pid))
+                    .map(|p| p.name().to_string_lossy().to_string())
+                    .unwrap_or_default();
+                if !StabilityShield::is_immune(foreground_pid, &foreground_name) {
+                    IoScheduler::prioritize_foreground_process(foreground_pid);
+                    if self.config.enable_cpu_affinity {
+                        self.cpu_mgr.pin_foreground(foreground_pid);
+                    }
+                }
+            }
+            self.last_foreground_pid = foreground_pid;
         }
 
         // Pre-emptive Standby Purging
@@ -198,11 +217,11 @@ impl SystemEngine {
                     self.gpu_mgr.enable_gpu_boost();
                 }
                 let _ = NetworkOptimizer::enable_qos_policy();
-                ServiceTuner::pause_background_services();
+                self.service_tuner.pause_background_services();
             } else {
                 self.cpu_mgr.restore_default_mode();
                 self.gpu_mgr.restore_default();
-                ServiceTuner::restore_background_services();
+                self.service_tuner.restore_background_services();
             }
 
             let self_pid = std::process::id();

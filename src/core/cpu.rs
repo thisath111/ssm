@@ -1,8 +1,9 @@
 use windows::core::GUID;
 use windows::Win32::System::Power::*;
 use windows::Win32::System::Threading::{
-    SetProcessAffinityMask, OpenProcess, SetPriorityClass,
-    PROCESS_SET_INFORMATION, HIGH_PRIORITY_CLASS, IDLE_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS
+    SetProcessAffinityMask, OpenProcess, SetPriorityClass, GetPriorityClass,
+    PROCESS_SET_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION,
+    HIGH_PRIORITY_CLASS, IDLE_PRIORITY_CLASS
 };
 use windows::Win32::Foundation::CloseHandle;
 use crate::sensors::cpu_topology::CpuTopology;
@@ -86,15 +87,18 @@ impl CpuManager {
         }
     }
 
-    /// Temporarily boosts a process to High Priority.
-    pub fn boost_process_priority(&self, pid: u32) {
-        if pid <= 4 { return; }
+    /// Temporarily boosts a process to High Priority, returning its original priority.
+    pub fn boost_process_priority(&self, pid: u32) -> Option<u32> {
+        if pid <= 4 { return None; }
         unsafe {
-            if let Ok(handle) = OpenProcess(PROCESS_SET_INFORMATION, false, pid) {
+            if let Ok(handle) = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
+                let orig = GetPriorityClass(handle);
                 let _ = SetPriorityClass(handle, HIGH_PRIORITY_CLASS);
                 let _ = CloseHandle(handle);
+                return Some(orig);
             }
         }
+        None
     }
 
     /// Throttles a background process to Idle Priority.
@@ -108,12 +112,12 @@ impl CpuManager {
         }
     }
 
-    /// Restores a process to Normal Priority.
-    pub fn restore_process_priority(&self, pid: u32) {
-        if pid <= 4 { return; }
+    /// Restores a process to its original Priority.
+    pub fn restore_process_priority(&self, pid: u32, original_priority: u32) {
+        if pid <= 4 || original_priority == 0 { return; }
         unsafe {
             if let Ok(handle) = OpenProcess(PROCESS_SET_INFORMATION, false, pid) {
-                let _ = SetPriorityClass(handle, NORMAL_PRIORITY_CLASS);
+                let _ = SetPriorityClass(handle, windows::Win32::System::Threading::PROCESS_CREATION_FLAGS(original_priority));
                 let _ = CloseHandle(handle);
             }
         }
