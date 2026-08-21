@@ -19,7 +19,7 @@ impl ExplorerWatchdog {
 
         // Auto-Rescue: Restart Explorer if hung
         if Self::is_shell_hung() {
-            let _ = std::process::Command::new("taskkill").args(&["/F", "/IM", "explorer.exe"]).output();
+            let _ = std::process::Command::new("taskkill").args(&["/F", "/IM", "explorer.exe"]).spawn();
             let _ = std::process::Command::new("cmd").args(&["/c", "start explorer.exe"]).spawn();
             return;
         }

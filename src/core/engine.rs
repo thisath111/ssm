@@ -44,6 +44,10 @@ pub struct SystemEngine {
     boosted_pids: HashMap<u32, (u64, u32)>,
     last_foreground_pid: u32,
     pub service_tuner: ServiceTuner,
+    
+    // Zero-Allocation Buffers
+    current_pids_buf: HashSet<u32>,
+    expired_boosts_buf: Vec<(u32, u32)>,
 }
 
 impl SystemEngine {
@@ -83,6 +87,8 @@ impl SystemEngine {
             boosted_pids: HashMap::new(),
             last_foreground_pid: 0,
             service_tuner: ServiceTuner::new(),
+            current_pids_buf: HashSet::with_capacity(512),
+            expired_boosts_buf: Vec::with_capacity(32),
         };
 
         for (pid, _) in engine.sys.processes() {
@@ -117,10 +123,10 @@ impl SystemEngine {
         // Tier 1: Fast FG Boost, App Launch Accel & AI Intent
         self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
-        let mut current_pids = HashSet::new();
+        self.current_pids_buf.clear();
         for (pid, process) in self.sys.processes() {
             let p_u32 = pid.as_u32();
-            current_pids.insert(p_u32);
+            self.current_pids_buf.insert(p_u32);
 
             let is_fg = p_u32 == foreground_pid;
             if is_fg {
@@ -146,18 +152,18 @@ impl SystemEngine {
                 }
             }
         }
-        self.active_pids = current_pids;
+        std::mem::swap(&mut self.active_pids, &mut self.current_pids_buf);
 
         // Revert expired launch boosts (3s limit)
-        let mut expired = Vec::new();
+        self.expired_boosts_buf.clear();
         for (&pid, &(start_tick, orig_prio)) in self.boosted_pids.iter() {
             if self.tick_count.saturating_sub(start_tick) >= 3 {
-                expired.push((pid, orig_prio));
+                self.expired_boosts_buf.push((pid, orig_prio));
             }
         }
-        for (pid, orig_prio) in expired {
-            self.cpu_mgr.restore_process_priority(pid, orig_prio);
-            self.boosted_pids.remove(&pid);
+        for (pid, orig_prio) in self.expired_boosts_buf.iter() {
+            self.cpu_mgr.restore_process_priority(*pid, *orig_prio);
+            self.boosted_pids.remove(pid);
         }
 
         if foreground_pid != self.last_foreground_pid {

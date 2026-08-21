@@ -23,7 +23,7 @@ impl ServiceTuner {
             let _ = Command::new("sc")
                 .args(&["stop", svc])
                 .creation_flags(CREATE_NO_WINDOW)
-                .output();
+                .spawn();
         }
         
         self.is_paused = true;
@@ -40,7 +40,7 @@ impl ServiceTuner {
             let _ = Command::new("sc")
                 .args(&["start", svc])
                 .creation_flags(CREATE_NO_WINDOW)
-                .output();
+                .spawn();
         }
 
         self.is_paused = false;
