@@ -1,7 +1,4 @@
-// emergency.rs
-// Nuclear option: when the system is about to completely freeze,
-// mass-suspend all non-essential processes and force-trim all working sets.
-// This is the last line of defense before the user has to hard-reset.
+// Emergency fallback for severe resource exhaustion.
 
 use sysinfo::System;
 use crate::core::suspend::ProcessSuspender;
@@ -24,8 +21,7 @@ impl EmergencyMode {
         }
     }
 
-    /// Evaluate whether to trigger emergency mode.
-    /// Called every tick from the engine.
+    /// Evaluates whether to trigger emergency mode.
     pub fn evaluate(
         &mut self,
         sys: &System,
@@ -51,7 +47,7 @@ impl EmergencyMode {
             return;
         }
 
-        // Trigger after 5 consecutive emergency ticks (2.5 seconds of crisis)
+        // Trigger after 5 consecutive emergency ticks
         if self.consecutive_emergency_ticks >= 5 && !self.is_active {
             warn!("[Emergency] ⚠️ EMERGENCY MODE ACTIVATED — mass suspending background processes!");
             self.activate(sys, suspender, foreground_pid, safeguard);
@@ -63,7 +59,7 @@ impl EmergencyMode {
 
         let self_pid = std::process::id();
 
-        // Critical processes that must NEVER be touched
+        // Critical processes that must NEVER be suspended
         let untouchable = [
             "system", "registry", "smss", "csrss", "wininit", "winlogon",
             "lsass", "services", "svchost", "dwm", "explorer", "fontdrvhost",
@@ -77,16 +73,16 @@ impl EmergencyMode {
         for (pid, process) in sys.processes() {
             let pid_u32 = pid.as_u32();
 
-            // Never touch foreground, self, or system PID 0/4
+            // Skip foreground, self, or system PIDs
             if pid_u32 == foreground_pid || pid_u32 == self_pid || pid_u32 <= 4 {
                 continue;
             }
 
             let name = process.name().to_string_lossy().to_lowercase();
 
-            // Never touch critical Windows processes
+            // Skip critical Windows processes
             if untouchable.iter().any(|&u| name.contains(u)) {
-                // But DO trim their working sets to free RAM
+                // But DO trim their working sets
                 self.ram_compressor.trim_process(pid_u32);
                 trimmed_count += 1;
                 continue;
@@ -95,7 +91,7 @@ impl EmergencyMode {
             let mem = process.memory();
             let cpu = process.cpu_usage();
 
-            // Suspend anything using meaningful resources
+            // Suspend resource hogs
             if cpu > 1.0 || mem > 20 * 1024 * 1024 {
                 if safeguard.authorize(crate::ai::safeguard::ActionType::Suspend, pid_u32, &name) {
                     suspender.suspend_process(pid_u32);
@@ -105,7 +101,7 @@ impl EmergencyMode {
                     self.ram_compressor.trim_process(pid_u32);
                 }
             } else {
-                // At minimum, trim working set
+                // Trim working set
                 if safeguard.authorize(crate::ai::safeguard::ActionType::TrimMemory, pid_u32, &name) {
                     self.ram_compressor.trim_process(pid_u32);
                     trimmed_count += 1;

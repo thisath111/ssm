@@ -80,10 +80,9 @@ fn service_execution_loop() -> Result<(), windows_service::Error> {
 
 pub fn install_service() -> Result<(), Box<dyn std::error::Error>> {
     let exe_path = std::env::current_exe()?;
-    // Propagate error instead of panicking on non-UTF8 paths
     let exe_str = exe_path.to_str().ok_or("Executable path contains non-UTF8 characters")?;
 
-    // Stop existing instance before reconfiguring
+    // Stop existing instance
     let _ = std::process::Command::new("sc")
         .args(["stop", SERVICE_NAME])
         .creation_flags(0x0800_0000)
@@ -94,7 +93,7 @@ pub fn install_service() -> Result<(), Box<dyn std::error::Error>> {
         .creation_flags(0x0800_0000)
         .output()?;
 
-    // Detect existence via stdout content; exit code alone is unreliable across Windows versions
+    // Check if service exists
     let service_exists = String::from_utf8_lossy(&query.stdout).contains("STATE");
 
     if service_exists {
@@ -114,10 +113,7 @@ pub fn install_service() -> Result<(), Box<dyn std::error::Error>> {
         .creation_flags(0x0800_0000)
         .output();
 
-    // Configure SCM to auto-restart ssm within 1 second if it crashes or stops unexpectedly.
-    // This ensures the FreezeGuard watchdog is always alive to protect the system.
-    // reset=60: reset failure counter after 60 seconds of successful running
-    // actions: restart after 1s, restart after 1s, restart after 1s (3 attempts)
+    // Configure SCM auto-restart (3 attempts, 1s delay)
     let _ = std::process::Command::new("sc")
         .args(["failure", SERVICE_NAME, "reset=60", "actions=restart/1000/restart/1000/restart/1000"])
         .creation_flags(0x0800_0000)

@@ -60,7 +60,7 @@ impl CpuManager {
         &self.topology
     }
 
-    /// Pin foreground process to Performance Cores (P-Cores) or all cores.
+    /// Pins foreground process to Performance Cores (P-Cores) or all cores.
     pub fn pin_foreground(&self, pid: u32) {
         if pid <= 4 || self.topology.p_core_mask == usize::MAX {
             return;
@@ -73,7 +73,7 @@ impl CpuManager {
         }
     }
 
-    /// Pin background CPU heavy process to Efficiency Cores (E-Cores) / secondary threads.
+    /// Pins background process to Efficiency Cores (E-Cores).
     pub fn pin_background(&self, pid: u32) {
         if pid <= 4 || self.topology.e_core_mask == usize::MAX {
             return;
@@ -86,7 +86,7 @@ impl CpuManager {
         }
     }
 
-    /// Temporarily boost a process to High Priority (for fast app launches)
+    /// Temporarily boosts a process to High Priority.
     pub fn boost_process_priority(&self, pid: u32) {
         if pid <= 4 { return; }
         unsafe {
@@ -97,7 +97,7 @@ impl CpuManager {
         }
     }
 
-    /// Throttle a non-critical background process to Idle Priority
+    /// Throttles a background process to Idle Priority.
     pub fn throttle_process_priority(&self, pid: u32) {
         if pid <= 4 { return; }
         unsafe {
@@ -108,7 +108,7 @@ impl CpuManager {
         }
     }
 
-    /// Restore a process to Normal Priority
+    /// Restores a process to Normal Priority.
     pub fn restore_process_priority(&self, pid: u32) {
         if pid <= 4 { return; }
         unsafe {
@@ -119,7 +119,7 @@ impl CpuManager {
         }
     }
 
-    /// Unparks all CPU cores and sets power plan to High/Ultimate Performance.
+    /// Unparks CPU cores and applies High/Ultimate Performance plan.
     pub fn enable_performance_mode(&mut self) {
         if self.is_boosted {
             return;
@@ -132,12 +132,12 @@ impl CpuManager {
                 let _ = LocalFree(active_ptr as *mut _);
             }
 
-            // Try applying Ultimate Performance or High Performance scheme
+            // Apply Ultimate or High Performance scheme
             if PowerSetActiveScheme(None, Some(&GUID_ULTIMATE_PERFORMANCE)).0 != 0 {
                 let _ = PowerSetActiveScheme(None, Some(&GUID_HIGH_PERFORMANCE));
             }
 
-            // Unpark all cores by setting Core Parking Min to 100%
+            // Unpark all cores (Core Parking Min = 100%)
             if let Some(active_scheme) = self.original_power_scheme {
                 let _ = PowerWriteACValueIndex(
                     None,

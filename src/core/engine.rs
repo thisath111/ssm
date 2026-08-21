@@ -53,7 +53,7 @@ impl SystemEngine {
         win32::enable_privilege("SeIncreaseBasePriorityPrivilege");
         LargePageOptimizer::enable_large_pages();
 
-        // Spawn FreezeGuard watchdog on a dedicated high-priority thread
+        // Initialize watchdog thread
         let heartbeat = FreezeGuardHeartbeat::new();
         let guard_handle = FreezeGuard::spawn(Arc::clone(&heartbeat));
 
@@ -98,11 +98,11 @@ impl SystemEngine {
         engine
     }
 
-    /// Single optimization tick — executed by daemon/service loop every 1000ms.
+    /// Main optimization loop (1000ms tick).
     pub fn tick(&mut self) {
         self.tick_count += 1;
 
-        // Signal FreezeGuard that the main loop is alive
+        // Update heartbeat for watchdog
         self.heartbeat.tick.store(self.tick_count, Ordering::Relaxed);
 
         let foreground_hwnd = win32::get_foreground_hwnd();
@@ -110,7 +110,7 @@ impl SystemEngine {
             .map(|h| win32::get_process_id_from_hwnd(h))
             .unwrap_or(0);
 
-        // Tier 1: Fast Foreground Boost, App Launch Acceleration & AI Intent Classification
+        // Tier 1: Fast FG Boost, App Launch Accel & AI Intent
         self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
         let mut current_pids = HashSet::new();
@@ -132,7 +132,7 @@ impl SystemEngine {
                 );
             }
 
-            // New process detected (App Launch Acceleration)
+            // App Launch Acceleration
             if !self.active_pids.contains(&p_u32) {
                 let name = process.name().to_string_lossy();
                 if p_u32 > 4 && !StabilityShield::is_immune(p_u32, &name) {
@@ -143,7 +143,7 @@ impl SystemEngine {
         }
         self.active_pids = current_pids;
 
-        // Revert expired launch boosts (after 3 seconds)
+        // Revert expired launch boosts (3s limit)
         let mut expired = Vec::new();
         for (&pid, &start_tick) in self.boosted_pids.iter() {
             if self.tick_count.saturating_sub(start_tick) >= 3 {
@@ -162,7 +162,7 @@ impl SystemEngine {
             }
         }
 
-        // Memory Momentum & Pre-emptive Standby Purging
+        // Pre-emptive Standby Purging
         self.ram_mgr.sensor.update();
         let ram_used_p = self.ram_mgr.sensor.usage_percent;
         self.ai_forecaster.record_and_predict(ram_used_p);
@@ -171,7 +171,7 @@ impl SystemEngine {
             self.ram_mgr.purge_standby_memory();
         }
 
-        // Tier 2: Process Scan, Kalman Predictor & AI State Machine (Every 3s)
+        // Tier 2: AI State Machine (3s interval)
         if self.tick_count % 3 == 0 {
             self.sys.refresh_cpu_usage();
 
@@ -207,7 +207,7 @@ impl SystemEngine {
 
             let self_pid = std::process::id();
 
-            // Audit handle leaks & deprioritize background hogs
+            // Audit handle leaks & throttle hogs
             let leaking = StabilityShield::audit_handle_leaks(&self.sys);
             for (pid, _, _) in leaking {
                 IoScheduler::deprioritize_background_process(pid);
@@ -220,13 +220,11 @@ impl SystemEngine {
                     continue;
                 }
 
-                // Aggressive Network Burst Throttling (Telemetry, Windows Update, Background Tasks)
+                // Aggressive Network Burst Throttling
                 let is_notorious = name == "compattelrunner.exe" || name == "tiworker.exe" 
                                 || name == "wermgr.exe" || name == "mousocoreworker.exe" 
                                 || name == "mrt.exe" || name == "backgroundtaskhost.exe";
 
-                // Only permanently throttle notorious telemetry/update hogs. 
-                // Do NOT throttle based on arbitrary CPU usage, as that ruins background apps (OBS, Discord, etc).
                 if is_notorious {
                     IoScheduler::deprioritize_background_process(p_u32);
                     self.cpu_mgr.throttle_process_priority(p_u32);
@@ -237,7 +235,7 @@ impl SystemEngine {
             }
         }
 
-        // Tier 3: Audio & WorkingSet Maintenance (Every 10s)
+        // Tier 3: Audio & WorkingSet Maintenance (10s interval)
         if self.tick_count % 10 == 0 {
             self.cached_audio_pids = self.audio_sensor.get_active_audio_pids();
 
@@ -257,7 +255,7 @@ impl SystemEngine {
             );
         }
 
-        // Tier 4: Storage NVMe & Standby Memory Purge (Every 30s)
+        // Tier 4: Storage & Standby Purge (30s interval)
         if self.tick_count % 30 == 0 {
             self.disk_sensor.update();
             if self.disk_sensor.usage_percent > self.config.disk_auto_clean_percent {

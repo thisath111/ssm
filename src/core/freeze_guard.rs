@@ -1,11 +1,5 @@
-/// FreezeGuard: Dedicated high-priority watchdog thread that monitors system
-/// responsiveness independently of the main engine tick loop.
-///
-/// The main engine tick runs on a 1-second interval. If the system is under extreme
-/// load (100% CPU, 99% RAM), even the main tick can stall. FreezeGuard runs on its
-/// own thread at ABOVE_NORMAL priority with a lightweight heartbeat — if the system
-/// stops responding, it aggressively kills the worst offending processes to restore
-/// responsiveness before a full hard-lock occurs.
+/// FreezeGuard: Independent high-priority watchdog thread.
+/// Monitors system responsiveness and recovers from potential hard-locks.
 
 use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};
 use std::sync::Arc;
@@ -20,8 +14,7 @@ use log::{warn, info};
 use sysinfo::System;
 use crate::core::stability_shield::StabilityShield;
 
-/// Shared heartbeat counter — the main engine increments this every tick.
-/// If FreezeGuard detects it hasn't changed for N seconds, the main loop is stalled.
+/// Shared heartbeat counter for stall detection.
 pub struct FreezeGuardHeartbeat {
     pub tick: AtomicU64,
     pub shutdown: AtomicBool,
@@ -39,15 +32,11 @@ impl FreezeGuardHeartbeat {
 pub struct FreezeGuard;
 
 impl FreezeGuard {
-    /// Spawn the FreezeGuard watchdog on a dedicated thread.
-    /// It monitors two things independently:
-    /// 1. System-wide responsiveness (RAM + CPU thresholds)
-    /// 2. Main engine heartbeat (is the tick loop itself frozen?)
+    /// Spawns the watchdog thread.
     pub fn spawn(heartbeat: Arc<FreezeGuardHeartbeat>) -> std::thread::JoinHandle<()> {
         std::thread::Builder::new()
             .name("ssm-freeze-guard".into())
             .spawn(move || {
-                // Elevate this thread to above-normal priority so it runs even under extreme load
                 unsafe {
                     let _ = SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
                 }
@@ -63,12 +52,11 @@ impl FreezeGuard {
 
                     std::thread::sleep(Duration::from_secs(2));
 
-                    // --- Check 1: Is the main engine tick loop stalled? ---
+                    // Check 1: Main engine stall
                     let current_tick = heartbeat.tick.load(Ordering::Relaxed);
                     if current_tick == last_seen_tick && current_tick > 0 {
                         stall_count += 1;
                         if stall_count >= 3 {
-                            // Main loop hasn't ticked for 6+ seconds — system is severely stressed
                             warn!("[FreezeGuard] Main engine stalled for {}s — executing emergency intervention", stall_count * 2);
                             Self::emergency_kill_top_hogs();
                             stall_count = 0;
@@ -78,7 +66,7 @@ impl FreezeGuard {
                     }
                     last_seen_tick = current_tick;
 
-                    // --- Check 2: System-wide resource crisis ---
+                    // Check 2: System resource crisis
                     let (ram_percent, available_mb) = Self::quick_ram_check();
                     let cpu_percent = Self::quick_cpu_check();
 
@@ -88,7 +76,6 @@ impl FreezeGuard {
                     if is_crisis {
                         consecutive_critical += 1;
                         if consecutive_critical >= 2 {
-                            // 4+ seconds of sustained crisis — intervene
                             warn!(
                                 "[FreezeGuard] System crisis detected (CPU: {:.0}%, RAM: {:.0}%, Free: {} MB) — forcing recovery",
                                 cpu_percent, ram_percent, available_mb
@@ -105,7 +92,7 @@ impl FreezeGuard {
             .expect("Failed to spawn FreezeGuard thread")
     }
 
-    /// Lightweight RAM check using GlobalMemoryStatusEx (takes <1us, never blocks)
+    /// Fast RAM check via GlobalMemoryStatusEx.
     fn quick_ram_check() -> (f32, u64) {
         use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
         let mut mem = MEMORYSTATUSEX {
@@ -123,7 +110,7 @@ impl FreezeGuard {
         }
     }
 
-    /// Quick CPU estimate from sysinfo (lightweight refresh)
+    /// Fast CPU usage estimate.
     fn quick_cpu_check() -> f32 {
         let mut sys = System::new();
         sys.refresh_cpu_usage();
@@ -132,8 +119,7 @@ impl FreezeGuard {
         sys.global_cpu_usage()
     }
 
-    /// Nuclear option: find the top 3 non-system processes consuming the most RAM
-    /// and forcefully terminate them to prevent a full system freeze.
+    /// Terminates top memory hogs during extreme crisis.
     fn emergency_kill_top_hogs() {
         let mut sys = System::new_all();
         sys.refresh_all();
@@ -143,7 +129,6 @@ impl FreezeGuard {
             .map(|h| crate::utils::win32::get_process_id_from_hwnd(h))
             .unwrap_or(0);
 
-        // Collect non-immune processes sorted by memory usage (descending)
         let mut candidates: Vec<(u32, u64, String)> = Vec::new();
         for (pid, process) in sys.processes() {
             let p = pid.as_u32();
@@ -158,7 +143,7 @@ impl FreezeGuard {
 
         candidates.sort_by(|a, b| b.1.cmp(&a.1));
 
-        // First pass: throttle top 5 hogs to IDLE priority
+        // Throttle top 5 hogs
         for (pid, mem, name) in candidates.iter().take(5) {
             warn!("[FreezeGuard] Throttling PID {} ({}) — {} MB", pid, name, mem / (1024 * 1024));
             unsafe {
@@ -169,7 +154,7 @@ impl FreezeGuard {
             }
         }
 
-        // Second pass: if available RAM is still critically low, terminate the worst offender
+        // Terminate worst offender if RAM is critical
         let (_, avail) = Self::quick_ram_check();
         if avail < 200 {
             if let Some((pid, mem, name)) = candidates.first() {
@@ -185,7 +170,7 @@ impl FreezeGuard {
         }
     }
 
-    /// Force-purge standby memory during crisis
+    /// Force standby memory purge.
     fn emergency_purge_standby() {
         info!("[FreezeGuard] Emergency standby memory purge");
         let ram_mgr = crate::core::ram::RamManager::new();
@@ -210,7 +195,6 @@ mod tests {
     #[test]
     fn test_quick_ram_check() {
         let (percent, avail) = FreezeGuard::quick_ram_check();
-        // Should return valid values on any Windows machine
         assert!(percent >= 0.0 && percent <= 100.0);
         assert!(avail > 0);
     }

@@ -17,7 +17,7 @@ impl ExplorerWatchdog {
         }
         self.last_check_tick = tick_count;
 
-        // Auto-Rescue: Restart Explorer if hung (e.g. bad USB drive I/O block)
+        // Auto-Rescue: Restart Explorer if hung
         if Self::is_shell_hung() {
             let _ = std::process::Command::new("taskkill").args(&["/F", "/IM", "explorer.exe"]).output();
             let _ = std::process::Command::new("cmd").args(&["/c", "start explorer.exe"]).spawn();

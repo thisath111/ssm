@@ -1,6 +1,4 @@
-// ram_compressor.rs
-// Aggressively flushes inactive processes from physical RAM to pagefile.
-// Eliminates micro-stutters caused by RAM pressure during gaming.
+// Flushes inactive processes from physical RAM to pagefile.
 
 use windows::Win32::System::Threading::{
     OpenProcess, PROCESS_SET_QUOTA, PROCESS_QUERY_INFORMATION,
@@ -19,16 +17,12 @@ impl RamCompressor {
         Self
     }
 
-    /// Forces the Windows Memory Manager to trim the Working Set of a background
-    /// process, pushing its pages to the pagefile and freeing physical RAM.
-    /// This is identical to what EmptyWorkingSet() does internally.
+    /// Trims the Working Set of a process to free physical RAM.
     pub fn trim_process(&self, pid: u32) {
         unsafe {
             let access = PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION;
             if let Ok(handle) = OpenProcess(access, false, pid) {
-                // Setting min=-1, max=-1 tells Windows to trim working set
-                // to the smallest possible size. Pages are lazily loaded back
-                // from pagefile when accessed, causing zero data loss.
+                // min=-1, max=-1 trims working set to minimum possible size
                 let _ = SetProcessWorkingSetSizeEx(
                     handle,
                     usize::MAX,    // -1 = trim min
@@ -40,7 +34,7 @@ impl RamCompressor {
         }
     }
 
-    /// Trims all non-critical background processes to free RAM for the foreground game.
+    /// Trims non-critical background processes.
     pub fn trim_all_background(&self, sys: &System, protected_pids: &[u32], safeguard: &crate::ai::safeguard::AiSafeguard) {
         let mut trimmed: u32 = 0;
         for (pid, process) in sys.processes() {
@@ -51,14 +45,14 @@ impl RamCompressor {
 
             let name = process.name().to_string_lossy().to_lowercase();
 
-            // Never trim critical Windows processes
+            // Skip critical Windows processes
             if name.contains("system") || name.contains("winlogon") || 
                name.contains("csrss") || name.contains("smss") || 
                name.contains("lsass") || name.contains("services") {
                 continue;
             }
 
-            // Trim processes using >50MB RAM that are not the foreground app
+            // Trim processes using >50MB RAM
             if process.memory() > 50 * 1024 * 1024 {
                 if safeguard.authorize(crate::ai::safeguard::ActionType::TrimMemory, pid_u32, &name) {
                     self.trim_process(pid_u32);
