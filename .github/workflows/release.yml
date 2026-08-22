@@ -26,7 +26,23 @@ jobs:
       - name: Build Optimized Release Binary
         run: cargo build --release
 
-      - name: Create or Update Pristine GitHub Release
+      # On every main push: update rolling "latest" pre-release with fresh .exe
+      - name: Upload Rolling Latest Release (main branch)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Smart System Manager — Latest Build"
+          body: "🔄 Automatically updated on every commit to `main`. Always contains the newest features and fixes."
+          files: target/release/ssm.exe
+          draft: false
+          prerelease: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # On version tag push: create stable versioned release
+      - name: Create Versioned Stable Release (tag push)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
