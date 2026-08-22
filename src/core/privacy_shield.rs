@@ -72,22 +72,16 @@ impl PrivacyShield {
 
     /// Gracefully disables the Connected User Experiences and Telemetry service
     fn disable_telemetry_service(&self) {
-        // We use sc to gracefully stop and disable the DiagTrack service.
-        // This is safe and does not corrupt the OS.
-        let stop_cmd = Command::new("sc")
+        let _ = Command::new("sc")
             .args(&["stop", "DiagTrack"])
             .creation_flags(CREATE_NO_WINDOW)
-            .output();
+            .spawn();
 
-        let config_cmd = Command::new("sc")
+        let _ = Command::new("sc")
             .args(&["config", "DiagTrack", "start=", "disabled"])
             .creation_flags(CREATE_NO_WINDOW)
-            .output();
+            .spawn();
             
-        if stop_cmd.is_ok() && config_cmd.is_ok() {
-            info!("[PrivacyShield] DiagTrack service safely disabled.");
-        } else {
-            warn!("[PrivacyShield] Failed to disable DiagTrack service.");
-        }
+        info!("[PrivacyShield] DiagTrack service disable dispatched.");
     }
 }

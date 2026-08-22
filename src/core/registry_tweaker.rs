@@ -65,6 +65,63 @@ impl RegistryTweaker {
             let _ = key.set_value("AutoEndTasks", &"1");
             let _ = key.set_value("WaitToKillAppTimeout", &"2000");
             let _ = key.set_value("HungAppTimeout", &"2000");
+            let _ = key.set_value("MenuShowDelay", &"0"); // Instant menu popup
+        }
+
+        // 6. Optimize Prefetch & Superfetch for faster boot
+        let prefetch_key = r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters";
+        if let Ok(key) = hklm.open_subkey_with_flags(prefetch_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("EnablePrefetcher", &2u32); // Boot files only
+            let _ = key.set_value("EnableSuperfetch", &0u32); // Disable Superfetch (prevents disk thrashing)
+        }
+
+        // 7. Memory Management: LargeSystemCache & DisablePagingExecutive
+        let mm_key = r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management";
+        if let Ok(key) = hklm.open_subkey_with_flags(mm_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("LargeSystemCache", &1u32); // More RAM for file cache
+            let _ = key.set_value("DisablePagingExecutive", &1u32); // Keep kernel in RAM
+            let _ = key.set_value("ClearPageFileAtShutdown", &0u32); // Faster shutdown
+        }
+
+        // 8. NTFS: Disable Last Access Time stamp (major I/O reduction)
+        let filesystem_key = r"SYSTEM\CurrentControlSet\Control\FileSystem";
+        if let Ok(key) = hklm.open_subkey_with_flags(filesystem_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("NtfsDisableLastAccessUpdate", &0x80000003u32);
+        }
+
+        // 9. Reduce Visual Effects for snappier UI (disable animations/transparency)
+        let visual_key = r"Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects";
+        if let Ok((key, _)) = hkcu.create_subkey_with_flags(visual_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("VisualFXSetting", &2u32); // Custom
+        }
+        let adv_key = r"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+        if let Ok(key) = hkcu.open_subkey_with_flags(adv_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("TaskbarAnimations", &0u32);
+        }
+        let dwm_key = r"Software\Microsoft\Windows\DWM";
+        if let Ok(key) = hkcu.open_subkey_with_flags(dwm_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("EnableAeroPeek", &0u32);
+            let _ = key.set_value("AlwaysHibernateThumbnails", &0u32);
+        }
+
+        // 10. Disable Windows Tips & Suggestions (background CPU drain)
+        let content_key = r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager";
+        if let Ok(key) = hkcu.open_subkey_with_flags(content_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("SubscribedContent-338389Enabled", &0u32);
+            let _ = key.set_value("SubscribedContent-310093Enabled", &0u32);
+            let _ = key.set_value("SystemPaneSuggestionsEnabled", &0u32);
+            let _ = key.set_value("SoftLandingEnabled", &0u32);
+        }
+
+        // 11. Disable Game Bar & Game DVR (massive background overhead)
+        let game_dvr_key = r"Software\Microsoft\Windows\CurrentVersion\GameDVR";
+        if let Ok((key, _)) = hkcu.create_subkey_with_flags(game_dvr_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("AppCaptureEnabled", &0u32);
+        }
+        let game_bar_key = r"Software\Microsoft\GameBar";
+        if let Ok((key, _)) = hkcu.create_subkey_with_flags(game_bar_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("AllowAutoGameMode", &1u32);
+            let _ = key.set_value("AutoGameModeEnabled", &1u32);
         }
 
         Ok(())
