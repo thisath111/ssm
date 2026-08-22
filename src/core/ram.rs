@@ -29,7 +29,7 @@ impl RamManager {
     }
 
     /// Trims physical working set for background processes safely under sustained RAM pressure.
-    pub fn trim_background_working_sets(&mut self, sys: &System, protected_pids: &[u32], tick_count: u64) -> u32 {
+    pub fn trim_background_working_sets(&mut self, sys: &System, protected_pids: &[u32], tick_count: u64, min_memory_mb: u64) -> u32 {
         if tick_count.saturating_sub(self.last_trim_tick) < 20 {
             return 0;
         }
@@ -40,11 +40,7 @@ impl RamManager {
 
         self.last_trim_tick = tick_count;
         let mut trimmed_count = 0;
-
-        let critical_processes = [
-            "system", "registry", "smss", "csrss", "wininit", "winlogon",
-            "lsass", "services", "dwm", "audiodg", "explorer", "ssm",
-        ];
+        let min_bytes = min_memory_mb * 1024 * 1024;
 
         for (pid, process) in sys.processes() {
             let pid_u32 = pid.as_u32();
@@ -52,12 +48,12 @@ impl RamManager {
                 continue;
             }
 
-            let name = process.name().to_string_lossy().to_lowercase();
-            if critical_processes.iter().any(|&c| name.contains(c)) {
+            let name = process.name().to_string_lossy();
+            if crate::core::stability_shield::StabilityShield::is_immune(pid_u32, &name) {
                 continue;
             }
 
-            if process.memory() > 100 * 1024 * 1024 {
+            if process.memory() > min_bytes {
                 if self.trim_single_process(pid_u32) {
                     trimmed_count += 1;
                     self.trimmed_pids.insert(pid_u32);

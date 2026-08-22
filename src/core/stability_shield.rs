@@ -2,10 +2,11 @@ use sysinfo::System;
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, GetProcessHandleCount};
 use windows::Win32::Foundation::CloseHandle;
 
-const CRITICAL_IMMUNITY_LIST: [&str; 15] = [
+const CRITICAL_IMMUNITY_LIST: [&str; 19] = [
     "system", "registry", "smss", "csrss", "wininit", "winlogon",
     "lsass", "services", "svchost", "dwm", "fontdrvhost", "audiodg",
-    "ctfmon", "sihost", "ssm",
+    "ctfmon", "sihost", "textinputhost", "startmenuexperiencehost",
+    "shellexperiencehost", "explorer", "ssm",
 ];
 
 pub struct StabilityShield;

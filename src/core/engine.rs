@@ -16,7 +16,7 @@ use crate::core::{
     stability_shield::StabilityShield, timer_resolution::TimerResolutionManager,
 };
 use crate::ai::{
-    ProcessIntent, ProcessIntentClassifier, PredictiveMemoryForecaster,
+    HardwareProfile, ProcessIntent, ProcessIntentClassifier, PredictiveMemoryForecaster,
     SystemWorkloadState, WorkloadStateMachine,
 };
 
@@ -44,6 +44,7 @@ pub struct SystemEngine {
     boosted_pids: HashMap<u32, (u64, u32)>,
     last_foreground_pid: u32,
     pub service_tuner: ServiceTuner,
+    pub hardware_profile: HardwareProfile,
     
     // Zero-Allocation Buffers
     current_pids_buf: HashSet<u32>,
@@ -62,6 +63,8 @@ impl SystemEngine {
         // Initialize watchdog thread
         let heartbeat = FreezeGuardHeartbeat::new();
         let guard_handle = FreezeGuard::spawn(Arc::clone(&heartbeat));
+
+        let hardware_profile = HardwareProfile::auto_detect(&sys);
 
         let mut engine = Self {
             sys,
@@ -87,6 +90,7 @@ impl SystemEngine {
             boosted_pids: HashMap::new(),
             last_foreground_pid: 0,
             service_tuner: ServiceTuner::new(),
+            hardware_profile,
             current_pids_buf: HashSet::with_capacity(512),
             expired_boosts_buf: Vec::with_capacity(32),
         };
@@ -245,13 +249,26 @@ impl SystemEngine {
                     continue;
                 }
 
-                // Aggressive Network Burst Throttling
+                // Aggressive Network & Disk Burst Throttling for low-end/budget hardware
                 let is_notorious = name == "compattelrunner.exe" || name == "tiworker.exe" 
                                 || name == "wermgr.exe" || name == "mousocoreworker.exe" 
-                                || name == "mrt.exe" || name == "backgroundtaskhost.exe";
+                                || name == "mrt.exe" || name == "backgroundtaskhost.exe"
+                                || name == "trustedinstaller.exe" || name == "msmpeng.exe"
+                                || name == "sedsvc.exe" || name == "waasmedicsvc.exe";
 
                 if is_notorious {
-                    IoScheduler::deprioritize_background_process(p_u32);
+                    if self.hardware_profile.enable_aggressive_io_throttle {
+                        unsafe {
+                            if let Ok(handle) = windows::Win32::System::Threading::OpenProcess(
+                                windows::Win32::System::Threading::PROCESS_SET_INFORMATION, false, p_u32
+                            ) {
+                                crate::utils::nt_api::set_process_io_priority(handle, self.hardware_profile.max_background_io_prio);
+                                let _ = windows::Win32::Foundation::CloseHandle(handle);
+                            }
+                        }
+                    } else {
+                        IoScheduler::deprioritize_background_process(p_u32);
+                    }
                     self.cpu_mgr.throttle_process_priority(p_u32);
                     if self.config.enable_cpu_affinity {
                         self.cpu_mgr.pin_background(p_u32);
@@ -271,6 +288,7 @@ impl SystemEngine {
                 &self.sys,
                 &protected,
                 self.tick_count,
+                self.hardware_profile.ram_pressure_trim_mb,
             );
             self.explorer_guard.check(
                 &self.sys,

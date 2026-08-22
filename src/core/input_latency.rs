@@ -23,19 +23,19 @@ impl InputLatencyOptimizer {
             let _ = key.set_value("MouseSensitivity", &"10".to_string());
         }
 
-        // 2. Maximize Keyboard Repeat Rate & Minimize Initial Delay
+        // 2. Maximize Keyboard Repeat Rate with ergonomic initial delay (prevents accidental key repeats)
         if let Ok(key) = hkcu.open_subkey_with_flags(KEYBOARD_KEY, KEY_ALL_ACCESS) {
-            let _ = key.set_value("KeyboardDelay", &"0".to_string());
+            let _ = key.set_value("KeyboardDelay", &"1".to_string());
             let _ = key.set_value("KeyboardSpeed", &"31".to_string());
         }
 
-        // 3. Optimize Keyboard & Mouse Buffer Queue Sizes for lower DPC/ISR queue delay
+        // 3. Set reliable Driver Queue Sizes (100) to guarantee zero dropped keystrokes/clicks even during load spikes
         if let Ok(key) = hklm.open_subkey_with_flags(KEYBOARD_CLASS_KEY, KEY_ALL_ACCESS) {
-            let _ = key.set_value("KeyboardDataQueueSize", &16u32);
+            let _ = key.set_value("KeyboardDataQueueSize", &100u32);
         }
 
         if let Ok(key) = hklm.open_subkey_with_flags(MOUSE_CLASS_KEY, KEY_ALL_ACCESS) {
-            let _ = key.set_value("MouseDataQueueSize", &16u32);
+            let _ = key.set_value("MouseDataQueueSize", &100u32);
         }
 
         // 4. Set Win32PrioritySeparation = 0x26 (Max Foreground CPU Quantum)
