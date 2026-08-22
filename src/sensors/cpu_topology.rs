@@ -94,13 +94,17 @@ impl CpuTopology {
             }
         }
 
-        // Fallback: If no distinct E-cores detected, assign upper 50% as secondary, lower 50% as primary
+        // Fallback: If no distinct E-cores detected, split upper/lower halves as soft affinity groups.
+        // Guard: if only 1-2 cores exist, disable splitting to prevent mask=0 stalls.
         if topology.p_core_mask == usize::MAX || topology.e_core_mask == usize::MAX {
-            let half = topology.total_logical_cores / 2;
-            if half > 0 {
+            let total = topology.total_logical_cores;
+            if total >= 4 {
+                let half = total / 2;
+                let all_mask = (1usize << total).saturating_sub(1);
                 topology.p_core_mask = (1 << half) - 1;
-                topology.e_core_mask = !topology.p_core_mask & ((1 << topology.total_logical_cores) - 1);
+                topology.e_core_mask = !topology.p_core_mask & all_mask;
             }
+            // For 2-core or fewer: keep usize::MAX (use all cores — no splitting)
         }
 
         topology

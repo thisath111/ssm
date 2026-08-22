@@ -26,6 +26,10 @@ impl SystemWorkloadState {
 pub struct WorkloadStateMachine {
     pub current_state: SystemWorkloadState,
     ticks_in_state: u64,
+    /// RAM % threshold to trigger emergency load-shedding (hardware adaptive)
+    pub emergency_ram_threshold: f32,
+    /// CPU % threshold to trigger emergency load-shedding (hardware adaptive)
+    pub emergency_cpu_threshold: f32,
 }
 
 impl WorkloadStateMachine {
@@ -33,6 +37,8 @@ impl WorkloadStateMachine {
         Self {
             current_state: SystemWorkloadState::StandardInteractive,
             ticks_in_state: 0,
+            emergency_ram_threshold: 92.0, // Default — overridden per hardware tier
+            emergency_cpu_threshold: 95.0,
         }
     }
 
@@ -46,7 +52,7 @@ impl WorkloadStateMachine {
     ) -> SystemWorkloadState {
         self.ticks_in_state += 1;
 
-        let next_state = if ram_usage > 92.0 || cpu_usage > 95.0 {
+        let next_state = if ram_usage > self.emergency_ram_threshold || cpu_usage > self.emergency_cpu_threshold {
             SystemWorkloadState::EmergencyLoadShedding
         } else if foreground_intent == ProcessIntent::Gaming {
             SystemWorkloadState::UltraGaming
@@ -89,5 +95,12 @@ mod tests {
         // 3. Low CPU/RAM triggers PowerSaverIdle
         let state_idle = sm.evaluate(2.0, 30.0, ProcessIntent::InteractiveUi, false);
         assert_eq!(state_idle, SystemWorkloadState::PowerSaverIdle);
+
+        // 4. Low-end hardware has lower emergency threshold
+        let mut sm_lowend = WorkloadStateMachine::new();
+        sm_lowend.emergency_ram_threshold = 80.0;
+        sm_lowend.emergency_cpu_threshold = 90.0;
+        let state_low = sm_lowend.evaluate(85.0, 82.0, ProcessIntent::InteractiveUi, false);
+        assert_eq!(state_low, SystemWorkloadState::EmergencyLoadShedding);
     }
 }

@@ -29,12 +29,19 @@ impl HardwareProfile {
         let logical_cores = sys.cpus().len().max(1);
         let total_ram_mb = sys.total_memory() / (1024 * 1024);
 
-        let tier = if logical_cores <= 4 || total_ram_mb <= 8192 {
+        let tier = if logical_cores <= 4 || total_ram_mb <= 6144 {
             HardwareTier::LowEndBudget
-        } else if logical_cores <= 8 && total_ram_mb <= 16384 {
+        } else if logical_cores <= 8 || total_ram_mb <= 16384 {
             HardwareTier::MidRangeStandard
         } else {
             HardwareTier::HighEndEnthusiast
+        };
+
+        // RAM trim threshold: never go below 150MB on any tier to avoid shell component crashes
+        let safe_trim_mb = match tier {
+            HardwareTier::LowEndBudget   => (total_ram_mb / 80).max(150),  // ~1.25% of total RAM, min 150MB
+            HardwareTier::MidRangeStandard => (total_ram_mb / 60).max(150), // ~1.6%
+            HardwareTier::HighEndEnthusiast => (total_ram_mb / 40).max(200), // ~2.5%
         };
 
         match tier {
@@ -42,23 +49,23 @@ impl HardwareProfile {
                 tier,
                 logical_cores,
                 total_ram_mb,
-                ram_pressure_trim_mb: 60, // Trim non-critical apps > 60MB to save scarce RAM
-                max_background_io_prio: 0, // VeryLow I/O (0) for background apps so HDD/SSD never locks
+                ram_pressure_trim_mb: safe_trim_mb,
+                max_background_io_prio: 0, // VeryLow I/O
                 enable_aggressive_io_throttle: true,
             },
             HardwareTier::MidRangeStandard => Self {
                 tier,
                 logical_cores,
                 total_ram_mb,
-                ram_pressure_trim_mb: 100,
-                max_background_io_prio: 1, // Low I/O (1)
+                ram_pressure_trim_mb: safe_trim_mb,
+                max_background_io_prio: 1, // Low I/O
                 enable_aggressive_io_throttle: true,
             },
             HardwareTier::HighEndEnthusiast => Self {
                 tier,
                 logical_cores,
                 total_ram_mb,
-                ram_pressure_trim_mb: 200,
+                ram_pressure_trim_mb: safe_trim_mb,
                 max_background_io_prio: 1,
                 enable_aggressive_io_throttle: false,
             },
@@ -67,6 +74,24 @@ impl HardwareProfile {
 
     pub fn is_low_end(&self) -> bool {
         self.tier == HardwareTier::LowEndBudget
+    }
+
+    /// For low-end PCs, high-precision timer (0.5ms) adds DPC overhead — use 1ms instead.
+    pub fn optimal_timer_resolution_100ns(&self) -> u32 {
+        match self.tier {
+            HardwareTier::LowEndBudget    => 10_000,  // 1.0ms — low overhead
+            HardwareTier::MidRangeStandard => 7_500,   // 0.75ms
+            HardwareTier::HighEndEnthusiast => 5_000,  // 0.5ms — maximum precision
+        }
+    }
+
+    /// Emergency RAM trigger threshold — lower for PCs with less headroom.
+    pub fn emergency_ram_threshold(&self) -> f32 {
+        match self.tier {
+            HardwareTier::LowEndBudget    => 80.0, // trigger earlier on scarce RAM
+            HardwareTier::MidRangeStandard => 87.0,
+            HardwareTier::HighEndEnthusiast => 92.0,
+        }
     }
 
     pub fn tier_name(&self) -> &'static str {

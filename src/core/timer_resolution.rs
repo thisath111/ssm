@@ -11,10 +11,19 @@ impl TimerResolutionManager {
 
     /// Enables high-precision 0.5ms (5000 in 100ns units) timer resolution.
     pub fn enable_high_precision(&mut self) -> bool {
+        self.enable_with_resolution(5_000)
+    }
+
+    /// Enables hardware-appropriate timer resolution to avoid DPC overhead on low-end PCs.
+    pub fn enable_adaptive(&mut self, resolution_100ns: u32) -> bool {
+        self.enable_with_resolution(resolution_100ns)
+    }
+
+    fn enable_with_resolution(&mut self, resolution_100ns: u32) -> bool {
         if self.is_boosted {
             return true;
         }
-        match nt_api::set_timer_resolution(5000) {
+        match nt_api::set_timer_resolution(resolution_100ns) {
             Ok(_) => {
                 self.is_boosted = true;
                 true

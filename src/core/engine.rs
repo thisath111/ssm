@@ -105,9 +105,19 @@ impl SystemEngine {
         let _ = NetworkOptimizer::disable_tcp_nagle();
         let _ = NvmeAccelerator::optimize_storage_stack();
 
+        // Apply hardware-adaptive timer resolution to avoid DPC overhead on low-end PCs
         if engine.config.enable_high_precision_timer {
-            engine.timer_mgr.enable_high_precision();
+            let resolution = engine.hardware_profile.optimal_timer_resolution_100ns();
+            engine.timer_mgr.enable_adaptive(resolution);
         }
+
+        // Wire hardware-adaptive emergency thresholds into AI State Machine
+        engine.ai_workload_state.emergency_ram_threshold = engine.hardware_profile.emergency_ram_threshold();
+        engine.ai_workload_state.emergency_cpu_threshold = match engine.hardware_profile.tier {
+            crate::ai::HardwareTier::LowEndBudget     => 88.0,
+            crate::ai::HardwareTier::MidRangeStandard  => 92.0,
+            crate::ai::HardwareTier::HighEndEnthusiast => 95.0,
+        };
 
         engine
     }
