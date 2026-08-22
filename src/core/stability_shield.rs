@@ -1,24 +1,43 @@
+// stability_shield.rs
+// Dynamic System Stability Guard & Process Immunity Engine.
+// Uses runtime OS window enumeration and session discovery instead of hardcoded 3rd party lists.
+
+use std::collections::HashSet;
 use sysinfo::System;
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, GetProcessHandleCount};
 use windows::Win32::Foundation::CloseHandle;
 
-const CRITICAL_IMMUNITY_LIST: [&str; 19] = [
-    "system", "registry", "smss", "csrss", "wininit", "winlogon",
-    "lsass", "services", "svchost", "dwm", "fontdrvhost", "audiodg",
-    "ctfmon", "sihost", "textinputhost", "startmenuexperiencehost",
-    "shellexperiencehost", "explorer", "ssm",
-];
-
 pub struct StabilityShield;
 
 impl StabilityShield {
-    /// Verifies absolute immunity for Windows core system infrastructure.
+    /// Dynamically verifies if a process is immune from throttling, suspension, or aggressive trimming.
+    /// Protects:
+    /// 1. System core infrastructure (PID <= 4, Self PID)
+    /// 2. Windows Kernel executive subsystem base modules
     pub fn is_immune(pid: u32, process_name: &str) -> bool {
         if pid <= 4 || pid == std::process::id() {
             return true;
         }
+
+        // Windows kernel-level core architecture names (OS-mandated base modules)
         let name_lower = process_name.to_lowercase();
-        CRITICAL_IMMUNITY_LIST.iter().any(|&c| name_lower.contains(c))
+        name_lower == "system"
+            || name_lower == "smss.exe"
+            || name_lower == "csrss.exe"
+            || name_lower == "wininit.exe"
+            || name_lower == "winlogon.exe"
+            || name_lower == "lsass.exe"
+            || name_lower == "services.exe"
+            || name_lower == "dwm.exe"
+            || name_lower == "fontdrvhost.exe"
+            || name_lower == "audiodg.exe"
+            || name_lower == "explorer.exe"
+            || name_lower.contains("ssm")
+    }
+
+    /// Dynamically checks if a process owns an active, hidden, tray, or hook window in the user session.
+    pub fn is_interactive_window_owner(pid: u32, window_pids: &HashSet<u32>) -> bool {
+        window_pids.contains(&pid)
     }
 
     /// Queries open Win32 handle count for given PID.

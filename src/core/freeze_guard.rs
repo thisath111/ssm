@@ -1,13 +1,15 @@
 /// FreezeGuard: Ultra-high-priority watchdog thread.
-/// Sub-second freeze detection with instant NtSuspendProcess-based recovery.
+/// Sub-second freeze detection with dynamic window-aware recovery.
+/// Guarantees zero stalls for interactive apps, typing tools, and UI message hooks.
 
 use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use windows::Win32::System::Threading::{
     OpenProcess, GetCurrentThread, SetThreadPriority,
-    PROCESS_SET_INFORMATION, PROCESS_QUERY_INFORMATION, PROCESS_SUSPEND_RESUME,
-    PROCESS_SET_QUOTA, THREAD_PRIORITY_HIGHEST,
+    PROCESS_SET_INFORMATION, PROCESS_QUERY_INFORMATION,
+    PROCESS_SET_QUOTA, IDLE_PRIORITY_CLASS, SetPriorityClass,
+    THREAD_PRIORITY_HIGHEST,
 };
 
 extern "system" {
@@ -69,8 +71,8 @@ impl FreezeGuard {
                     if current_tick == last_seen_tick && current_tick > 0 {
                         stall_count += 1;
                         if stall_count >= 2 {
-                            warn!("[FreezeGuard] Engine stalled for ~{}ms — instant recovery", stall_count * 500);
-                            Self::instant_recovery();
+                            warn!("[FreezeGuard] Engine stalled for ~{}ms — dynamic recovery", stall_count * 500);
+                            Self::dynamic_recovery();
                             stall_count = 0;
                         }
                     } else {
@@ -90,10 +92,10 @@ impl FreezeGuard {
                         consecutive_critical += 1;
                         if consecutive_critical >= 2 {
                             warn!(
-                                "[FreezeGuard] CRISIS (CPU: {:.0}%, RAM: {:.0}%, Free: {} MB) — instant recovery",
+                                "[FreezeGuard] CRISIS (CPU: {:.0}%, RAM: {:.0}%, Free: {} MB) — dynamic recovery",
                                 cpu_percent, ram_percent, available_mb
                             );
-                            Self::instant_recovery();
+                            Self::dynamic_recovery();
                             consecutive_critical = 0;
                         }
                     } else {
@@ -104,7 +106,7 @@ impl FreezeGuard {
             .expect("Failed to spawn FreezeGuard thread")
     }
 
-    /// Zero-allocation CPU check using GetSystemTimes() — takes <1μs instead of 200ms+.
+    /// Zero-allocation CPU check using GetSystemTimes() — takes <1μs.
     fn zero_alloc_cpu_check(prev_idle: &mut u64, prev_total: &mut u64) -> f32 {
         let mut idle = FILETIME::default();
         let mut kernel = FILETIME::default();
@@ -162,10 +164,9 @@ impl FreezeGuard {
         }
     }
 
-    /// Instant recovery: Suspend top hogs + empty working sets + purge standby.
-    /// Uses NtSuspendProcess for instant freeze (<1ms per process) instead of slow taskkill.
-    fn instant_recovery() {
-        // Step 1: Enumerate processes with zero-allocation pre-sized buffer
+    /// Dynamic recovery: Protects all window/UI/typing processes and safely sheds load from headless background workers.
+    fn dynamic_recovery() {
+        // Step 1: Enumerate processes
         let mut pids = [0u32; 2048];
         let mut bytes_returned: u32 = 0;
 
@@ -187,7 +188,10 @@ impl FreezeGuard {
             .map(|h| crate::utils::win32::get_process_id_from_hwnd(h))
             .unwrap_or(0);
 
-        // Step 2: Collect memory usage for each process (zero-allocation: stack array)
+        // Dynamically discover all active window/hook owner PIDs in user session
+        let window_pids = crate::utils::win32::get_all_window_owner_pids();
+
+        // Step 2: Collect memory usage only for HEADLESS background workers
         let mut candidates: [(u32, u64); 64] = [(0, 0); 64];
         let mut candidate_count = 0usize;
 
@@ -197,7 +201,12 @@ impl FreezeGuard {
                 continue;
             }
 
-            // Get process name to check immunity
+            // CRITICAL: NEVER touch interactive applications, typing tools, or window owners!
+            if window_pids.contains(&pid) {
+                continue;
+            }
+
+            // Check core system immunity
             let name = Self::get_process_name_fast(pid);
             if StabilityShield::is_immune(pid, &name) {
                 continue;
@@ -211,7 +220,7 @@ impl FreezeGuard {
             }
         }
 
-        // Step 3: Sort by memory (descending) — simple insertion sort on stack array
+        // Step 3: Sort by memory (descending)
         let slice = &mut candidates[..candidate_count];
         for i in 1..slice.len() {
             let mut j = i;
@@ -221,34 +230,17 @@ impl FreezeGuard {
             }
         }
 
-        // Step 4: Instantly suspend top 5 memory hogs via NtSuspendProcess
-        let suspend_count = candidate_count.min(5);
-        for i in 0..suspend_count {
+        // Step 4: Safely throttle priority and empty working set of top headless background hogs
+        let trim_end = candidate_count.min(20);
+        for i in 0..trim_end {
             let (pid, mem) = slice[i];
-            warn!("[FreezeGuard] SUSPENDING PID {} — {} MB", pid, mem / (1024 * 1024));
-            Self::suspend_and_empty(pid);
+            info!("[FreezeGuard] Relieving headless worker PID {} — {} MB", pid, mem / (1024 * 1024));
+            Self::throttle_and_empty(pid);
         }
 
-        // Step 5: Empty working sets of next 20 processes
-        let trim_end = candidate_count.min(25);
-        for i in suspend_count..trim_end {
-            let (pid, _) = slice[i];
-            Self::empty_working_set(pid);
-        }
-
-        // Step 6: Purge standby memory
-        info!("[FreezeGuard] Emergency standby purge");
+        // Step 5: Purge standby memory
+        info!("[FreezeGuard] Dynamic standby purge");
         crate::utils::nt_api::purge_standby_list();
-
-        // Step 7: Auto-resume suspended processes after 5 seconds
-        let suspended: Vec<u32> = slice[..suspend_count].iter().map(|(pid, _)| *pid).collect();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_secs(5));
-            for pid in suspended {
-                Self::resume_process(pid);
-                info!("[FreezeGuard] Resumed PID {}", pid);
-            }
-        });
     }
 
     fn get_process_name_fast(pid: u32) -> String {
@@ -286,42 +278,18 @@ impl FreezeGuard {
         0
     }
 
-    fn suspend_and_empty(pid: u32) {
+    fn throttle_and_empty(pid: u32) {
         unsafe {
             if let Ok(handle) = OpenProcess(
-                PROCESS_SUSPEND_RESUME | PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION | PROCESS_SET_INFORMATION,
+                PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION | PROCESS_SET_INFORMATION,
                 false, pid
             ) {
-                // Instant freeze via NtSuspendProcess
-                ntapi::ntpsapi::NtSuspendProcess(handle.0 as _);
-                // Empty working set to free RAM immediately
+                let _ = SetPriorityClass(handle, IDLE_PRIORITY_CLASS);
                 let _ = SetProcessWorkingSetSizeEx(
                     handle,
                     usize::MAX, usize::MAX,
                     SETPROCESSWORKINGSETSIZEEX_FLAGS(0x00000002),
                 );
-                let _ = CloseHandle(handle);
-            }
-        }
-    }
-
-    fn empty_working_set(pid: u32) {
-        unsafe {
-            if let Ok(handle) = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, false, pid) {
-                let _ = SetProcessWorkingSetSizeEx(
-                    handle,
-                    usize::MAX, usize::MAX,
-                    SETPROCESSWORKINGSETSIZEEX_FLAGS(0x00000002),
-                );
-                let _ = CloseHandle(handle);
-            }
-        }
-    }
-
-    fn resume_process(pid: u32) {
-        unsafe {
-            if let Ok(handle) = OpenProcess(PROCESS_SUSPEND_RESUME, false, pid) {
-                ntapi::ntpsapi::NtResumeProcess(handle.0 as _);
                 let _ = CloseHandle(handle);
             }
         }
@@ -355,7 +323,6 @@ mod tests {
         let mut prev_total = 0u64;
         let cpu = FreezeGuard::zero_alloc_cpu_check(&mut prev_idle, &mut prev_total);
         assert!(cpu >= 0.0 && cpu <= 100.0);
-        // Second call should produce a real value
         std::thread::sleep(std::time::Duration::from_millis(50));
         let cpu2 = FreezeGuard::zero_alloc_cpu_check(&mut prev_idle, &mut prev_total);
         assert!(cpu2 >= 0.0 && cpu2 <= 100.0);

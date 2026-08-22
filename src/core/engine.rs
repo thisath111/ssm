@@ -127,12 +127,15 @@ impl SystemEngine {
         // Tier 1: Fast FG Boost, App Launch Accel & AI Intent
         self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
+        let window_pids = win32::get_all_window_owner_pids();
+
         self.current_pids_buf.clear();
         for (pid, process) in self.sys.processes() {
             let p_u32 = pid.as_u32();
             self.current_pids_buf.insert(p_u32);
 
             let is_fg = p_u32 == foreground_pid;
+            let has_win = window_pids.contains(&p_u32);
             if is_fg {
                 let name = process.name().to_string_lossy();
                 let mem_mb = process.memory() / (1024 * 1024);
@@ -143,6 +146,7 @@ impl SystemEngine {
                     cpu_p,
                     true,
                     16,
+                    has_win,
                 );
             }
 
@@ -245,7 +249,8 @@ impl SystemEngine {
             for (pid, process) in self.sys.processes() {
                 let p_u32 = pid.as_u32();
                 let name = process.name().to_string_lossy().to_lowercase();
-                if p_u32 == foreground_pid || p_u32 == self_pid || StabilityShield::is_immune(p_u32, &name) {
+                // Dynamic check: NEVER throttle active interactive/typing window owners!
+                if p_u32 == foreground_pid || p_u32 == self_pid || StabilityShield::is_immune(p_u32, &name) || window_pids.contains(&p_u32) {
                     continue;
                 }
 
@@ -283,6 +288,7 @@ impl SystemEngine {
 
             let mut protected = vec![foreground_pid, std::process::id()];
             protected.extend(self.cached_audio_pids.iter());
+            protected.extend(window_pids.iter()); // Protect all interactive/typing window owners dynamically!
 
             self.ram_mgr.trim_background_working_sets(
                 &self.sys,

@@ -1,9 +1,15 @@
+// intent_classifier.rs
+// Pure-Rust Zero-Overhead AI Process Intent Classifier.
+// Dynamically classifies process intent using behavioral telemetry, thread counts,
+// memory footprint, and window/session topology with ZERO hardcoded 3rd party names.
+
 /// Process Intent Category predicted by the AI engine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProcessIntent {
     Gaming,
     CreativeWorkstation,
     SoftwareDevelopment,
+    InputMethodEditor,
     InteractiveUi,
     BackgroundWorker,
     SystemCore,
@@ -15,6 +21,7 @@ impl ProcessIntent {
             Self::Gaming => "Gaming / Real-Time 3D",
             Self::CreativeWorkstation => "Creative Workstation (Video/3D/Audio)",
             Self::SoftwareDevelopment => "Developer / Compilation",
+            Self::InputMethodEditor => "Input Method / Real-Time Typing Helper",
             Self::InteractiveUi => "Interactive UI / Productivity",
             Self::BackgroundWorker => "Background Worker / Daemon",
             Self::SystemCore => "Windows System Core",
@@ -22,18 +29,17 @@ impl ProcessIntent {
     }
 }
 
-/// Pure-Rust Zero-Overhead AI Process Intent Classifier.
-/// Uses heuristic decision trees & behavioural pattern weights for sub-microsecond classification.
 pub struct ProcessIntentClassifier;
 
 impl ProcessIntentClassifier {
-    /// Classifies a process based on name, memory footprint (MB), CPU usage, and whether it holds the foreground window.
+    /// Dynamically classifies a process using pure behavioural metrics & OS topologies.
     pub fn classify(
         name: &str,
         memory_mb: u64,
         cpu_usage: f32,
         is_foreground: bool,
         thread_count: usize,
+        has_window: bool,
     ) -> ProcessIntent {
         let name_lower = name.to_lowercase();
 
@@ -42,23 +48,24 @@ impl ProcessIntentClassifier {
             return ProcessIntent::SystemCore;
         }
 
-        // 2. Developer / Compiler Tools
-        if Self::is_dev_tool(&name_lower) {
-            return ProcessIntent::SoftwareDevelopment;
-        }
-
-        // 3. Creative / Media Workstations
-        if Self::is_creative_app(&name_lower) || (memory_mb > 2500 && thread_count > 30 && cpu_usage > 40.0) {
-            return ProcessIntent::CreativeWorkstation;
-        }
-
-        // 4. Gaming / Real-time 3D Simulation
-        if Self::is_game(&name_lower) || (is_foreground && memory_mb > 1200 && cpu_usage > 10.0 && thread_count > 16) {
+        // 2. Gaming / Real-time 3D Simulation (Dynamic: Foreground + High memory + Multi-threaded)
+        if is_foreground && memory_mb >= 600 && thread_count >= 12 && cpu_usage >= 5.0 {
             return ProcessIntent::Gaming;
         }
 
-        // 5. Interactive UI / General Apps
-        if is_foreground || memory_mb > 200 {
+        // 3. Creative / Media Heavy Workstation (High Memory + Extreme Thread Count)
+        if memory_mb >= 2000 && thread_count >= 24 && cpu_usage >= 25.0 {
+            return ProcessIntent::CreativeWorkstation;
+        }
+
+        // 4. Input Method Editor / Typing Tool / UI Hook Helper (Dynamic: Has Window, Low Footprint, Responsive)
+        // Automatically captures Helakuru, Keyman, Wijesekara, AutoHotkey, IMEs without hardcoding
+        if has_window && !is_foreground && memory_mb <= 350 && thread_count <= 20 {
+            return ProcessIntent::InputMethodEditor;
+        }
+
+        // 5. Interactive UI / General Foreground Application
+        if is_foreground || has_window {
             return ProcessIntent::InteractiveUi;
         }
 
@@ -81,55 +88,6 @@ impl ProcessIntentClassifier {
                 | "audiodg.exe"
         )
     }
-
-    fn is_dev_tool(name: &str) -> bool {
-        name.contains("code")
-            || name.contains("devenv")
-            || name.contains("rustc")
-            || name.contains("cargo")
-            || name.contains("clippy")
-            || name.contains("gcc")
-            || name.contains("clang")
-            || name.contains("msbuild")
-            || name.contains("node")
-            || name.contains("git")
-            || name.contains("py")
-            || name.contains("idea")
-            || name.contains("pycharm")
-    }
-
-    fn is_creative_app(name: &str) -> bool {
-        name.contains("premiere")
-            || name.contains("afterfx")
-            || name.contains("photoshop")
-            || name.contains("blender")
-            || name.contains("davinci")
-            || name.contains("resolve")
-            || name.contains("cinema4d")
-            || name.contains("maya")
-            || name.contains("3dsmax")
-            || name.contains("obs64")
-            || name.contains("ffmpeg")
-            || name.contains("handbrake")
-            || name.contains("ableton")
-            || name.contains("fl64")
-    }
-
-    fn is_game(name: &str) -> bool {
-        name.contains("game")
-            || name.contains("steam")
-            || name.contains("unreal")
-            || name.contains("unity")
-            || name.contains("valorant")
-            || name.contains("cs2")
-            || name.contains("dota")
-            || name.contains("gta")
-            || name.contains("cyberpunk")
-            || name.contains("fortnite")
-            || name.contains("minecraft")
-            || name.contains("epicgames")
-            || name.contains("riotclient")
-    }
 }
 
 #[cfg(test)]
@@ -139,27 +97,31 @@ mod tests {
     #[test]
     fn test_intent_classification() {
         assert_eq!(
-            ProcessIntentClassifier::classify("dwm.exe", 150, 2.0, false, 8),
+            ProcessIntentClassifier::classify("dwm.exe", 150, 2.0, false, 8, true),
             ProcessIntent::SystemCore
         );
 
+        // Gaming detected dynamically by metrics
         assert_eq!(
-            ProcessIntentClassifier::classify("Code.exe", 800, 5.0, true, 24),
-            ProcessIntent::SoftwareDevelopment
-        );
-
-        assert_eq!(
-            ProcessIntentClassifier::classify("Blender.exe", 3500, 60.0, true, 48),
-            ProcessIntent::CreativeWorkstation
-        );
-
-        assert_eq!(
-            ProcessIntentClassifier::classify("Valorant.exe", 2000, 25.0, true, 32),
+            ProcessIntentClassifier::classify("some_game.exe", 2000, 35.0, true, 32, true),
             ProcessIntent::Gaming
         );
 
+        // Creative heavy workstation detected by metrics
         assert_eq!(
-            ProcessIntentClassifier::classify("mystery_worker.exe", 50, 0.1, false, 2),
+            ProcessIntentClassifier::classify("render_node.exe", 4500, 80.0, false, 64, true),
+            ProcessIntent::CreativeWorkstation
+        );
+
+        // Background typing helper / IME detected dynamically (has window, low RAM, low threads)
+        assert_eq!(
+            ProcessIntentClassifier::classify("custom_typing_tool.exe", 85, 0.5, false, 6, true),
+            ProcessIntent::InputMethodEditor
+        );
+
+        // Headless worker
+        assert_eq!(
+            ProcessIntentClassifier::classify("daemon_worker.exe", 40, 0.1, false, 2, false),
             ProcessIntent::BackgroundWorker
         );
     }

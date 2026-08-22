@@ -172,3 +172,37 @@ pub fn register_in_path() -> Result<bool, Box<dyn std::error::Error>> {
 
     Ok(true)
 }
+
+extern "system" {
+    fn ProcessIdToSessionId(dwProcessId: u32, pSessionId: *mut u32) -> i32;
+    fn EnumWindowsRaw(lpEnumFunc: unsafe extern "system" fn(isize, isize) -> i32, lParam: isize) -> i32;
+}
+
+/// Dynamically discovers all Process IDs that own any active, hidden, tray, or hook window.
+pub fn get_all_window_owner_pids() -> std::collections::HashSet<u32> {
+    unsafe extern "system" fn callback(hwnd: isize, lparam: isize) -> i32 {
+        let mut pid: u32 = 0;
+        unsafe {
+            GetWindowThreadProcessId(HWND(hwnd as *mut _), Some(&mut pid));
+        }
+        if pid > 0 {
+            let set = unsafe { &mut *(lparam as *mut std::collections::HashSet<u32>) };
+            set.insert(pid);
+        }
+        1 // TRUE: continue enumeration
+    }
+
+    let mut set: std::collections::HashSet<u32> = std::collections::HashSet::with_capacity(128);
+    unsafe {
+        EnumWindowsRaw(callback, &mut set as *mut _ as isize);
+    }
+    set
+}
+
+/// Checks if a process belongs to Windows System Service Session (Session 0).
+pub fn is_session_zero(pid: u32) -> bool {
+    let mut session_id = 0u32;
+    let res = unsafe { ProcessIdToSessionId(pid, &mut session_id) };
+    res != 0 && session_id == 0
+}
+

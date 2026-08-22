@@ -146,7 +146,7 @@ pub fn handle_stats() {
             let name = proc.name().to_string_lossy();
             let mem_mb = proc.memory() / (1024 * 1024);
             let cpu_p = proc.cpu_usage();
-            let intent = crate::ai::ProcessIntentClassifier::classify(&name, mem_mb, cpu_p, true, 16);
+            let intent = crate::ai::ProcessIntentClassifier::classify(&name, mem_mb, cpu_p, true, 16, true);
             TerminalUi::print_key_value("Active App Intent (AI)", &format!("{} [{}]", name, intent.as_str()));
         }
     }
