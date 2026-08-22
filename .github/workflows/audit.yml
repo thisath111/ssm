@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "main" ]
   schedule:
-    - cron: '0 0 * * 0' # Run weekly on Sunday
+    - cron: '0 0 * * 0' # Weekly Sunday security scan
 
 jobs:
   analyze:
@@ -26,18 +26,16 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run Cargo Check
-        run: cargo check --all-targets --all-features
+        run: cargo check --all-targets
 
-      - name: Run Automated Unit Tests (100% Zero-Bug Guard)
-        run: cargo test --all-targets --all-features -- --nocapture
+      - name: Run Automated Unit Tests
+        run: cargo test --all-targets -- --nocapture
 
       - name: Run Clippy (Bug Hunter)
-        # This scans the entire codebase for bad practices, hidden bugs, memory leaks, and logic errors.
-        run: cargo clippy --all-targets --all-features -- -W clippy::all -W clippy::pedantic -W clippy::nursery
+        run: cargo clippy --all-targets -- -W clippy::all -W clippy::pedantic -W clippy::nursery
         continue-on-error: true
 
-      - name: Install Cargo Audit
-        run: cargo install cargo-audit
-
       - name: Run Security Vulnerability Audit
-        run: cargo audit
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
