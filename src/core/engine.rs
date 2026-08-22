@@ -264,14 +264,14 @@ impl SystemEngine {
                     continue;
                 }
 
-                // Aggressive Network & Disk Burst Throttling for low-end/budget hardware
-                let is_notorious = name == "compattelrunner.exe" || name == "tiworker.exe" 
-                                || name == "wermgr.exe" || name == "mousocoreworker.exe" 
-                                || name == "mrt.exe" || name == "backgroundtaskhost.exe"
-                                || name == "trustedinstaller.exe" || name == "msmpeng.exe"
-                                || name == "sedsvc.exe" || name == "waasmedicsvc.exe";
+                // Behavioral detection: High I/O + Low CPU = background disk hog (no name hardcoding)
+                let mem_mb = process.memory() / (1024 * 1024);
+                let cpu_p  = process.cpu_usage();
+                let is_bg_disk_hog = cpu_p < 5.0
+                    && mem_mb < self.hardware_profile.ram_pressure_trim_mb * 2
+                    && process.status() != sysinfo::ProcessStatus::Run;
 
-                if is_notorious {
+                if is_bg_disk_hog {
                     if self.hardware_profile.enable_aggressive_io_throttle {
                         unsafe {
                             if let Ok(handle) = windows::Win32::System::Threading::OpenProcess(
@@ -321,7 +321,13 @@ impl SystemEngine {
                 self.disk_sensor.clean_temp_files();
             }
 
-            if self.config.enable_standby_purging && self.ram_mgr.sensor.available_mb < 2000 {
+            // Standby purge threshold: hardware-adaptive (Low-end PCs need more aggressive purging)
+            let standby_purge_threshold_mb = match self.hardware_profile.tier {
+                crate::ai::HardwareTier::LowEndBudget     => self.hardware_profile.total_ram_mb / 8, // 12.5% of total RAM
+                crate::ai::HardwareTier::MidRangeStandard  => self.hardware_profile.total_ram_mb / 6, // ~16%
+                crate::ai::HardwareTier::HighEndEnthusiast => self.hardware_profile.total_ram_mb / 4, // 25%
+            };
+            if self.config.enable_standby_purging && self.ram_mgr.sensor.available_mb < standby_purge_threshold_mb {
                 self.ram_mgr.purge_standby_memory();
             }
         }
