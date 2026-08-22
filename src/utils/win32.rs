@@ -175,7 +175,13 @@ pub fn register_in_path() -> Result<bool, Box<dyn std::error::Error>> {
 
 extern "system" {
     fn ProcessIdToSessionId(dwProcessId: u32, pSessionId: *mut u32) -> i32;
-    fn EnumWindowsRaw(lpEnumFunc: unsafe extern "system" fn(isize, isize) -> i32, lParam: isize) -> i32;
+
+    // Link to real Windows EnumWindows API using a Rust-safe raw signature (i32 BOOL)
+    #[link_name = "EnumWindows"]
+    fn enum_windows_raw(
+        lpEnumFunc: unsafe extern "system" fn(isize, isize) -> i32,
+        lParam: isize,
+    ) -> i32;
 }
 
 /// Dynamically discovers all Process IDs that own any active, hidden, tray, or hook window.
@@ -194,7 +200,7 @@ pub fn get_all_window_owner_pids() -> std::collections::HashSet<u32> {
 
     let mut set: std::collections::HashSet<u32> = std::collections::HashSet::with_capacity(128);
     unsafe {
-        EnumWindowsRaw(callback, &mut set as *mut _ as isize);
+        enum_windows_raw(callback, &mut set as *mut _ as isize);
     }
     set
 }
