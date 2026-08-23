@@ -123,13 +123,11 @@ impl SystemEngine {
             log::warn!("Failed to optimize NVMe stack: {e}");
         }
 
-        // Apply hardware-adaptive timer resolution to avoid DPC overhead on low-end PCs
         if engine.config.enable_high_precision_timer {
             let resolution = engine.hardware_profile.optimal_timer_resolution_100ns();
             engine.timer_mgr.enable_adaptive(resolution);
         }
 
-        // Wire hardware-adaptive emergency thresholds into AI State Machine
         engine.ai_workload_state.emergency_ram_threshold =
             engine.hardware_profile.emergency_ram_threshold();
         engine.ai_workload_state.emergency_cpu_threshold = match engine.hardware_profile.tier {
@@ -154,7 +152,6 @@ impl SystemEngine {
         let foreground_pid = foreground_hwnd
             .map_or(0, win32::get_process_id_from_hwnd);
 
-        // Tier 1: Fast FG Boost, App Launch Accel & AI Intent
         self.sys
             .refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
@@ -175,7 +172,6 @@ impl SystemEngine {
                     ProcessIntentClassifier::classify(&name, mem_mb, cpu_p, true, 16, has_win);
             }
 
-            // App Launch Acceleration
             if !self.active_pids.contains(&p_u32) {
                 let name = process.name().to_string_lossy();
                 if p_u32 > 4 && !StabilityShield::is_immune(p_u32, &name) {
@@ -223,7 +219,6 @@ impl SystemEngine {
             self.last_foreground_pid = foreground_pid;
         }
 
-        // Pre-emptive Standby Purging
         self.ram_mgr.sensor.update();
         let ram_used_p = self.ram_mgr.sensor.usage_percent;
         self.ai_forecaster.record_and_predict(ram_used_p);
@@ -234,7 +229,6 @@ impl SystemEngine {
             self.ram_mgr.purge_standby_memory();
         }
 
-        // Tier 2: AI State Machine (3s interval)
         if self.tick_count.is_multiple_of(3) {
             self.sys.refresh_cpu_usage();
 
@@ -279,7 +273,6 @@ impl SystemEngine {
             for (pid, process) in self.sys.processes() {
                 let p_u32 = pid.as_u32();
                 let name = process.name().to_string_lossy().to_lowercase();
-                // Dynamic check: NEVER throttle active interactive/typing window owners!
                 if p_u32 == foreground_pid
                     || p_u32 == self_pid
                     || StabilityShield::is_immune(p_u32, &name)
@@ -288,7 +281,6 @@ impl SystemEngine {
                     continue;
                 }
 
-                // Behavioral detection: High I/O + Low CPU = background disk hog (no name hardcoding)
                 let mem_mb = process.memory() / (1024 * 1024);
                 let cpu_p = process.cpu_usage();
                 let is_bg_disk_hog = cpu_p < 5.0
@@ -321,7 +313,6 @@ impl SystemEngine {
             }
         }
 
-        // Tier 3: Audio & WorkingSet Maintenance (10s interval)
         if self.tick_count.is_multiple_of(10) {
             self.cached_audio_pids = self.audio_sensor.get_active_audio_pids();
 
@@ -343,14 +334,12 @@ impl SystemEngine {
             );
         }
 
-        // Tier 4: Storage & Standby Purge (30s interval)
         if self.tick_count.is_multiple_of(30) {
             self.disk_sensor.update();
             if self.disk_sensor.usage_percent > self.config.disk_auto_clean_percent {
                 self.disk_sensor.clean_temp_files();
             }
 
-            // Standby purge threshold: hardware-adaptive (Low-end PCs need more aggressive purging)
             let standby_purge_threshold_mb = match self.hardware_profile.tier {
                 crate::ai::HardwareTier::LowEndBudget => self.hardware_profile.total_ram_mb / 8, // 12.5% of total RAM
                 crate::ai::HardwareTier::MidRangeStandard => self.hardware_profile.total_ram_mb / 6, // ~16%
