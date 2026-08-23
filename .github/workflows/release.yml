@@ -23,26 +23,14 @@ jobs:
       - name: Install Stable Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+
       - name: Build Optimized Release Binary
         run: cargo build --release
 
-      # On every main push: update rolling "latest" pre-release with fresh .exe
-      - name: Upload Rolling Latest Release (main branch)
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: "Smart System Manager — Latest Build"
-          body: "🔄 Automatically updated on every commit to `main`. Always contains the newest features and fixes."
-          files: target/release/ssm.exe
-          draft: false
-          prerelease: true
-          make_latest: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # On version tag push: create stable versioned release
-      - name: Create Versioned Stable Release (tag push)
+      # Only publish a GitHub Release when a version tag is pushed (e.g. v1.2.0)
+      - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
