@@ -12,13 +12,15 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build Windows Release
+  build:
+    name: Build Windows Binary
     runs-on: windows-latest
 
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Professional: fetch full history for accurate changelogs
 
       - name: Install Stable Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -29,21 +31,18 @@ jobs:
       - name: Build Optimized Release Binary
         run: cargo build --release
 
-      # On every main push: overwrite ssm.exe in the existing stable release
-      - name: Update Release Binary (main branch)
+      # 1. On MAIN branch push: Upload as a GitHub Actions Artifact (Professional practice)
+      # Professional repos DO NOT update stable releases on every commit.
+      - name: Upload Artifact for Main Branch
         if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: v1.0.0
-          files: target/release/ssm.exe
-          draft: false
-          prerelease: false
-          make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: ssm-windows-latest-build
+          path: target/release/ssm.exe
+          retention-days: 14
 
-      # On version tag push: create/update a versioned stable release
-      - name: Publish GitHub Release
+      # 2. On TAG push (e.g., v1.1.2): Publish or update the official GitHub Release
+      - name: Publish Official GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
@@ -52,6 +51,6 @@ jobs:
           files: target/release/ssm.exe
           draft: false
           prerelease: false
-          make_latest: true
+          make_latest: true # Automatically makes this the latest release, pushing older ones down
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
