@@ -1,15 +1,12 @@
-/// FreezeGuard: Ultra-high-priority watchdog thread.
+/// `FreezeGuard`: Ultra-high-priority watchdog thread.
 /// Sub-second freeze detection with dynamic window-aware recovery.
 /// Guarantees zero stalls for interactive apps, typing tools, and UI message hooks.
-
-use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use windows::Win32::System::Threading::{
-    OpenProcess, GetCurrentThread, SetThreadPriority,
-    PROCESS_SET_INFORMATION, PROCESS_QUERY_INFORMATION,
-    PROCESS_SET_QUOTA, IDLE_PRIORITY_CLASS, SetPriorityClass,
-    THREAD_PRIORITY_HIGHEST,
+    GetCurrentThread, OpenProcess, SetPriorityClass, SetThreadPriority, IDLE_PRIORITY_CLASS,
+    PROCESS_QUERY_INFORMATION, PROCESS_SET_INFORMATION, PROCESS_SET_QUOTA, THREAD_PRIORITY_HIGHEST,
 };
 
 extern "system" {
@@ -19,12 +16,16 @@ extern "system" {
         lpUserTime: *mut FILETIME,
     ) -> i32;
 }
-use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
-use windows::Win32::System::Memory::{SetProcessWorkingSetSizeEx, SETPROCESSWORKINGSETSIZEEX_FLAGS};
-use windows::Win32::Foundation::{CloseHandle, FILETIME};
-use windows::Win32::System::ProcessStatus::{EnumProcesses, GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
-use log::{warn, info};
 use crate::core::stability_shield::StabilityShield;
+use log::{info, warn};
+use windows::Win32::Foundation::{CloseHandle, FILETIME};
+use windows::Win32::System::Memory::{
+    SetProcessWorkingSetSizeEx, SETPROCESSWORKINGSETSIZEEX_FLAGS,
+};
+use windows::Win32::System::ProcessStatus::{
+    EnumProcesses, GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
+};
+use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 
 pub struct FreezeGuardHeartbeat {
     pub tick: AtomicU64,
@@ -32,6 +33,7 @@ pub struct FreezeGuardHeartbeat {
 }
 
 impl FreezeGuardHeartbeat {
+    #[must_use] 
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             tick: AtomicU64::new(0),
@@ -92,8 +94,7 @@ impl FreezeGuard {
                         consecutive_critical += 1;
                         if consecutive_critical >= 2 {
                             warn!(
-                                "[FreezeGuard] CRISIS (CPU: {:.0}%, RAM: {:.0}%, Free: {} MB) — dynamic recovery",
-                                cpu_percent, ram_percent, available_mb
+                                "[FreezeGuard] CRISIS (CPU: {cpu_percent:.0}%, RAM: {ram_percent:.0}%, Free: {available_mb} MB) — dynamic recovery"
                             );
                             Self::dynamic_recovery();
                             consecutive_critical = 0;
@@ -106,27 +107,21 @@ impl FreezeGuard {
             .expect("Failed to spawn FreezeGuard thread")
     }
 
-    /// Zero-allocation CPU check using GetSystemTimes() — takes <1μs.
+    /// Zero-allocation CPU check using `GetSystemTimes()` — takes <1μs.
     fn zero_alloc_cpu_check(prev_idle: &mut u64, prev_total: &mut u64) -> f32 {
         let mut idle = FILETIME::default();
         let mut kernel = FILETIME::default();
         let mut user = FILETIME::default();
 
-        let ok = unsafe {
-            GetSystemTimes(
-                &mut idle,
-                &mut kernel,
-                &mut user,
-            )
-        };
+        let ok = unsafe { GetSystemTimes(&raw mut idle, &raw mut kernel, &raw mut user) };
 
         if ok == 0 {
             return 0.0;
         }
 
-        let idle_ticks = ((idle.dwHighDateTime as u64) << 32) | idle.dwLowDateTime as u64;
-        let kernel_ticks = ((kernel.dwHighDateTime as u64) << 32) | kernel.dwLowDateTime as u64;
-        let user_ticks = ((user.dwHighDateTime as u64) << 32) | user.dwLowDateTime as u64;
+        let idle_ticks = (u64::from(idle.dwHighDateTime) << 32) | u64::from(idle.dwLowDateTime);
+        let kernel_ticks = (u64::from(kernel.dwHighDateTime) << 32) | u64::from(kernel.dwLowDateTime);
+        let user_ticks = (u64::from(user.dwHighDateTime) << 32) | u64::from(user.dwLowDateTime);
         let total_ticks = kernel_ticks + user_ticks;
 
         if *prev_total == 0 {
@@ -148,16 +143,21 @@ impl FreezeGuard {
         ((delta_total - delta_idle) as f32 / delta_total as f32) * 100.0
     }
 
+    #[must_use] 
     pub fn quick_ram_check() -> (f32, u64) {
         let mut mem = MEMORYSTATUSEX {
             dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
             ..Default::default()
         };
-        if unsafe { GlobalMemoryStatusEx(&mut mem) }.is_ok() {
+        if unsafe { GlobalMemoryStatusEx(&raw mut mem) }.is_ok() {
             let total = mem.ullTotalPhys / (1024 * 1024);
             let avail = mem.ullAvailPhys / (1024 * 1024);
             let used = total.saturating_sub(avail);
-            let percent = if total > 0 { (used as f32 / total as f32) * 100.0 } else { 0.0 };
+            let percent = if total > 0 {
+                (used as f32 / total as f32) * 100.0
+            } else {
+                0.0
+            };
             (percent, avail)
         } else {
             (0.0, u64::MAX)
@@ -174,7 +174,7 @@ impl FreezeGuard {
             EnumProcesses(
                 pids.as_mut_ptr(),
                 (pids.len() * std::mem::size_of::<u32>()) as u32,
-                &mut bytes_returned,
+                &raw mut bytes_returned,
             )
         };
 
@@ -185,8 +185,7 @@ impl FreezeGuard {
         let count = bytes_returned as usize / std::mem::size_of::<u32>();
         let self_pid = std::process::id();
         let foreground_pid = crate::utils::win32::get_foreground_hwnd()
-            .map(|h| crate::utils::win32::get_process_id_from_hwnd(h))
-            .unwrap_or(0);
+            .map_or(0, crate::utils::win32::get_process_id_from_hwnd);
 
         // Dynamically discover all active window/hook owner PIDs in user session
         let window_pids = crate::utils::win32::get_all_window_owner_pids();
@@ -234,7 +233,11 @@ impl FreezeGuard {
         let trim_end = candidate_count.min(20);
         for i in 0..trim_end {
             let (pid, mem) = slice[i];
-            info!("[FreezeGuard] Relieving headless worker PID {} — {} MB", pid, mem / (1024 * 1024));
+            info!(
+                "[FreezeGuard] Relieving headless worker PID {} — {} MB",
+                pid,
+                mem / (1024 * 1024)
+            );
             Self::throttle_and_empty(pid);
         }
 
@@ -244,15 +247,22 @@ impl FreezeGuard {
     }
 
     fn get_process_name_fast(pid: u32) -> String {
-        use windows::Win32::System::Threading::PROCESS_QUERY_LIMITED_INFORMATION;
         use windows::Win32::System::Threading::QueryFullProcessImageNameW;
         use windows::Win32::System::Threading::PROCESS_NAME_FORMAT;
+        use windows::Win32::System::Threading::PROCESS_QUERY_LIMITED_INFORMATION;
 
         unsafe {
             if let Ok(handle) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
                 let mut buf = [0u16; 260];
                 let mut len = buf.len() as u32;
-                if QueryFullProcessImageNameW(handle, PROCESS_NAME_FORMAT(0), windows::core::PWSTR(buf.as_mut_ptr()), &mut len).is_ok() {
+                if QueryFullProcessImageNameW(
+                    handle,
+                    PROCESS_NAME_FORMAT(0),
+                    windows::core::PWSTR(buf.as_mut_ptr()),
+                    &raw mut len,
+                )
+                .is_ok()
+                {
                     let _ = CloseHandle(handle);
                     let path = String::from_utf16_lossy(&buf[..len as usize]);
                     return path.rsplit('\\').next().unwrap_or("").to_lowercase();
@@ -268,7 +278,7 @@ impl FreezeGuard {
             if let Ok(handle) = OpenProcess(PROCESS_QUERY_INFORMATION, false, pid) {
                 let mut counters = PROCESS_MEMORY_COUNTERS::default();
                 counters.cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
-                if GetProcessMemoryInfo(handle, &mut counters, counters.cb).is_ok() {
+                if GetProcessMemoryInfo(handle, &raw mut counters, counters.cb).is_ok() {
                     let _ = CloseHandle(handle);
                     return counters.WorkingSetSize as u64;
                 }
@@ -282,12 +292,14 @@ impl FreezeGuard {
         unsafe {
             if let Ok(handle) = OpenProcess(
                 PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION | PROCESS_SET_INFORMATION,
-                false, pid
+                false,
+                pid,
             ) {
                 let _ = SetPriorityClass(handle, IDLE_PRIORITY_CLASS);
                 let _ = SetProcessWorkingSetSizeEx(
                     handle,
-                    usize::MAX, usize::MAX,
+                    usize::MAX,
+                    usize::MAX,
                     SETPROCESSWORKINGSETSIZEEX_FLAGS(0x00000002),
                 );
                 let _ = CloseHandle(handle);
@@ -313,7 +325,7 @@ mod tests {
     #[test]
     fn test_quick_ram_check() {
         let (percent, avail) = FreezeGuard::quick_ram_check();
-        assert!(percent >= 0.0 && percent <= 100.0);
+        assert!((0.0..=100.0).contains(&percent));
         assert!(avail > 0);
     }
 
@@ -322,9 +334,9 @@ mod tests {
         let mut prev_idle = 0u64;
         let mut prev_total = 0u64;
         let cpu = FreezeGuard::zero_alloc_cpu_check(&mut prev_idle, &mut prev_total);
-        assert!(cpu >= 0.0 && cpu <= 100.0);
+        assert!((0.0..=100.0).contains(&cpu));
         std::thread::sleep(std::time::Duration::from_millis(50));
         let cpu2 = FreezeGuard::zero_alloc_cpu_check(&mut prev_idle, &mut prev_total);
-        assert!(cpu2 >= 0.0 && cpu2 <= 100.0);
+        assert!((0.0..=100.0).contains(&cpu2));
     }
 }

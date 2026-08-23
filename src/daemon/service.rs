@@ -1,3 +1,5 @@
+use crate::core::engine::SystemEngine;
+use crate::utils::config::Config;
 use std::ffi::OsString;
 use std::os::windows::process::CommandExt;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -12,8 +14,6 @@ use windows_service::{
     service_control_handler::{self, ServiceControlHandlerResult},
     service_dispatcher,
 };
-use crate::utils::config::Config;
-use crate::core::engine::SystemEngine;
 
 pub const SERVICE_NAME: &str = "SmartSystemManager";
 static SHOULD_EXIT: AtomicBool = AtomicBool::new(false);
@@ -62,7 +62,7 @@ fn service_execution_loop() -> Result<(), windows_service::Error> {
         }
 
         engine.tick();
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_secs(1));
     }
 
     status_handle.set_service_status(ServiceStatus {
@@ -80,7 +80,9 @@ fn service_execution_loop() -> Result<(), windows_service::Error> {
 
 pub fn install_service() -> Result<(), Box<dyn std::error::Error>> {
     let exe_path = std::env::current_exe()?;
-    let exe_str = exe_path.to_str().ok_or("Executable path contains non-UTF8 characters")?;
+    let exe_str = exe_path
+        .to_str()
+        .ok_or("Executable path contains non-UTF8 characters")?;
 
     // Stop existing instance
     let _ = std::process::Command::new("sc")
@@ -98,12 +100,23 @@ pub fn install_service() -> Result<(), Box<dyn std::error::Error>> {
 
     if service_exists {
         std::process::Command::new("sc")
-            .args(["config", SERVICE_NAME, &format!("binPath=\"{}\" daemon", exe_str), "start=auto"])
+            .args([
+                "config",
+                SERVICE_NAME,
+                &format!("binPath=\"{exe_str}\" daemon"),
+                "start=auto",
+            ])
             .creation_flags(0x0800_0000)
             .output()?;
     } else {
         std::process::Command::new("sc")
-            .args(["create", SERVICE_NAME, &format!("binPath=\"{}\" daemon", exe_str), "start=auto", "obj=LocalSystem"])
+            .args([
+                "create",
+                SERVICE_NAME,
+                &format!("binPath=\"{exe_str}\" daemon"),
+                "start=auto",
+                "obj=LocalSystem",
+            ])
             .creation_flags(0x0800_0000)
             .output()?;
     }
@@ -115,7 +128,12 @@ pub fn install_service() -> Result<(), Box<dyn std::error::Error>> {
 
     // Configure SCM auto-restart (3 attempts, 1s delay)
     let _ = std::process::Command::new("sc")
-        .args(["failure", SERVICE_NAME, "reset=60", "actions=restart/1000/restart/1000/restart/1000"])
+        .args([
+            "failure",
+            SERVICE_NAME,
+            "reset=60",
+            "actions=restart/1000/restart/1000/restart/1000",
+        ])
         .creation_flags(0x0800_0000)
         .output();
 

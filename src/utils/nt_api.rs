@@ -1,4 +1,6 @@
-use ntapi::ntpsapi::{NtSetInformationProcess, ProcessIoPriority, NtSuspendProcess, NtResumeProcess};
+use ntapi::ntpsapi::{
+    NtResumeProcess, NtSetInformationProcess, NtSuspendProcess, ProcessIoPriority,
+};
 use windows::Win32::Foundation::HANDLE;
 
 extern "system" {
@@ -28,7 +30,7 @@ const PROCESS_PAGE_PRIORITY: u32 = 39;
 /// Sets global Windows timer resolution in 100ns units (e.g. 5000 = 0.5ms).
 pub fn set_timer_resolution(desired_100ns: u32) -> Result<u32, i32> {
     let mut actual: u32 = 0;
-    let status = unsafe { NtSetTimerResolution(desired_100ns, 1, &mut actual) };
+    let status = unsafe { NtSetTimerResolution(desired_100ns, 1, &raw mut actual) };
     if status >= 0 {
         Ok(actual)
     } else {
@@ -37,11 +39,12 @@ pub fn set_timer_resolution(desired_100ns: u32) -> Result<u32, i32> {
 }
 
 /// Queries current timer resolution ranges (min, max, current) in 100ns units.
+#[must_use] 
 pub fn query_timer_resolution() -> Option<(u32, u32, u32)> {
     let mut min: u32 = 0;
     let mut max: u32 = 0;
     let mut current: u32 = 0;
-    let status = unsafe { NtQueryTimerResolution(&mut min, &mut max, &mut current) };
+    let status = unsafe { NtQueryTimerResolution(&raw mut min, &raw mut max, &raw mut current) };
     if status >= 0 {
         Some((min, max, current))
     } else {
@@ -50,13 +53,14 @@ pub fn query_timer_resolution() -> Option<(u32, u32, u32)> {
 }
 
 /// Sets Process I/O Priority (0 = Very Low, 1 = Low, 2 = Normal, 3 = High).
+#[must_use] 
 pub fn set_process_io_priority(handle: HANDLE, priority: u32) -> bool {
     let mut io_prio = priority;
     let status = unsafe {
         NtSetInformationProcess(
-            handle.0 as _,
+            handle.0.cast(),
             ProcessIoPriority,
-            &mut io_prio as *mut _ as *mut _,
+            (&raw mut io_prio).cast(),
             std::mem::size_of::<u32>() as u32,
         )
     };
@@ -64,13 +68,14 @@ pub fn set_process_io_priority(handle: HANDLE, priority: u32) -> bool {
 }
 
 /// Sets Process Memory Page Priority (1 = Lowest, 5 = Normal/High).
+#[must_use] 
 pub fn set_process_page_priority(handle: HANDLE, priority: u32) -> bool {
     let mut page_prio = priority;
     let status = unsafe {
         NtSetInformationProcess(
-            handle.0 as _,
+            handle.0.cast(),
             PROCESS_PAGE_PRIORITY as _,
-            &mut page_prio as *mut _ as *mut _,
+            (&raw mut page_prio).cast(),
             std::mem::size_of::<u32>() as u32,
         )
     };
@@ -78,26 +83,29 @@ pub fn set_process_page_priority(handle: HANDLE, priority: u32) -> bool {
 }
 
 /// Safely purges Windows Standby Memory List.
+#[must_use] 
 pub fn purge_standby_list() -> bool {
     let mut command: u32 = PURGE_STANDBY_LIST;
     let status = unsafe {
         NtSetSystemInformation(
             SYSTEM_MEMORY_LIST_INFORMATION,
-            &mut command as *mut _ as *mut _,
+            (&raw mut command).cast(),
             std::mem::size_of::<u32>() as u32,
         )
     };
     status >= 0
 }
 
-/// Suspends process execution using NtSuspendProcess.
+/// Suspends process execution using `NtSuspendProcess`.
+#[must_use] 
 pub fn suspend_process_nt(handle: HANDLE) -> bool {
-    let status = unsafe { NtSuspendProcess(handle.0 as _) };
+    let status = unsafe { NtSuspendProcess(handle.0.cast()) };
     status >= 0
 }
 
-/// Resumes process execution using NtResumeProcess.
+/// Resumes process execution using `NtResumeProcess`.
+#[must_use] 
 pub fn resume_process_nt(handle: HANDLE) -> bool {
-    let status = unsafe { NtResumeProcess(handle.0 as _) };
+    let status = unsafe { NtResumeProcess(handle.0.cast()) };
     status >= 0
 }

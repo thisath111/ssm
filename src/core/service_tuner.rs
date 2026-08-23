@@ -1,5 +1,5 @@
-use std::process::Command;
 use std::os::windows::process::CommandExt;
+use std::process::Command;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -7,8 +7,15 @@ pub struct ServiceTuner {
     pub is_paused: bool,
 }
 
+impl Default for ServiceTuner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServiceTuner {
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self { is_paused: false }
     }
 
@@ -21,11 +28,11 @@ impl ServiceTuner {
         let services = ["SysMain", "WSearch", "DiagTrack", "MapsBroker"];
         for svc in services {
             let _ = Command::new("sc")
-                .args(&["stop", svc])
+                .args(["stop", svc])
                 .creation_flags(CREATE_NO_WINDOW)
                 .spawn();
         }
-        
+
         self.is_paused = true;
     }
 
@@ -38,7 +45,7 @@ impl ServiceTuner {
         let services = ["SysMain", "WSearch"];
         for svc in services {
             let _ = Command::new("sc")
-                .args(&["start", svc])
+                .args(["start", svc])
                 .creation_flags(CREATE_NO_WINDOW)
                 .spawn();
         }

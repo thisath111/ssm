@@ -1,12 +1,12 @@
-use winreg::enums::*;
+use winreg::enums::{HKEY_CURRENT_USER, KEY_ALL_ACCESS};
 use winreg::RegKey;
 
-/// DirectFlip & Desktop Window Manager (DWM) Input Latency Optimizer.
+/// `DirectFlip` & Desktop Window Manager (DWM) Input Latency Optimizer.
 /// Strips frame buffering delays between GPU presentation queues and displays.
 pub struct DwmLatencyOptimizer;
 
 impl DwmLatencyOptimizer {
-    /// Applies zero-latency DWM composition & DirectFlip registry keys.
+    /// Applies zero-latency DWM composition & `DirectFlip` registry keys.
     pub fn optimize_dwm_latency() -> Result<(), Box<dyn std::error::Error>> {
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 

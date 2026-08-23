@@ -10,7 +10,8 @@ pub enum SystemWorkloadState {
 }
 
 impl SystemWorkloadState {
-    pub fn as_str(&self) -> &'static str {
+    #[must_use] 
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Self::PowerSaverIdle => "Power-Efficient Idle",
             Self::StandardInteractive => "Standard Interactive",
@@ -32,8 +33,15 @@ pub struct WorkloadStateMachine {
     pub emergency_cpu_threshold: f32,
 }
 
+impl Default for WorkloadStateMachine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WorkloadStateMachine {
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self {
             current_state: SystemWorkloadState::StandardInteractive,
             ticks_in_state: 0,
@@ -52,7 +60,9 @@ impl WorkloadStateMachine {
     ) -> SystemWorkloadState {
         self.ticks_in_state += 1;
 
-        let next_state = if ram_usage > self.emergency_ram_threshold || cpu_usage > self.emergency_cpu_threshold {
+        let next_state = if ram_usage > self.emergency_ram_threshold
+            || cpu_usage > self.emergency_cpu_threshold
+        {
             SystemWorkloadState::EmergencyLoadShedding
         } else if foreground_intent == ProcessIntent::Gaming {
             SystemWorkloadState::UltraGaming

@@ -44,7 +44,7 @@ enum Commands {
     Uninstall,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     let _ = utils::win32::register_in_path();
 
     simplelog::TermLogger::init(
@@ -52,7 +52,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         simplelog::Config::default(),
         simplelog::TerminalMode::Mixed,
         simplelog::ColorChoice::Auto,
-    ).ok();
+    )
+    .ok();
 
     let cli = Cli::parse();
 
@@ -70,6 +71,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::handle_stats();
         }
     }
-
-    Ok(())
 }

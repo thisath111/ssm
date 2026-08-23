@@ -15,7 +15,14 @@ pub struct RamPressureSensor {
     pub total_mb: u64,
 }
 
+impl Default for RamPressureSensor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RamPressureSensor {
+    #[must_use] 
     pub fn new() -> Self {
         let mut sensor = Self {
             level: RamPressureLevel::Normal,
@@ -33,7 +40,7 @@ impl RamPressureSensor {
             ..Default::default()
         };
 
-        if unsafe { GlobalMemoryStatusEx(&mut mem_info) }.is_ok() {
+        if unsafe { GlobalMemoryStatusEx(&raw mut mem_info) }.is_ok() {
             self.total_mb = mem_info.ullTotalPhys / (1024 * 1024);
             self.available_mb = mem_info.ullAvailPhys / (1024 * 1024);
             let used_mb = self.total_mb.saturating_sub(self.available_mb);

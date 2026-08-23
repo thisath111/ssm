@@ -8,8 +8,8 @@ use sysinfo::System;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HardwareTier {
-    LowEndBudget,    // <= 4 Cores or <= 8GB RAM (Optimized for zero disk/CPU stutter)
-    MidRangeStandard, // 6-8 Cores and 12-16GB RAM
+    LowEndBudget,      // <= 4 Cores or <= 8GB RAM (Optimized for zero disk/CPU stutter)
+    MidRangeStandard,  // 6-8 Cores and 12-16GB RAM
     HighEndEnthusiast, // > 8 Cores and > 16GB RAM
 }
 
@@ -25,6 +25,7 @@ pub struct HardwareProfile {
 
 impl HardwareProfile {
     /// Auto-detects hardware topology from the operating system.
+    #[must_use] 
     pub fn auto_detect(sys: &System) -> Self {
         let logical_cores = sys.cpus().len().max(1);
         let total_ram_mb = sys.total_memory() / (1024 * 1024);
@@ -39,7 +40,7 @@ impl HardwareProfile {
 
         // RAM trim threshold: never go below 150MB on any tier to avoid shell component crashes
         let safe_trim_mb = match tier {
-            HardwareTier::LowEndBudget   => (total_ram_mb / 80).max(150),  // ~1.25% of total RAM, min 150MB
+            HardwareTier::LowEndBudget => (total_ram_mb / 80).max(150), // ~1.25% of total RAM, min 150MB
             HardwareTier::MidRangeStandard => (total_ram_mb / 60).max(150), // ~1.6%
             HardwareTier::HighEndEnthusiast => (total_ram_mb / 40).max(200), // ~2.5%
         };
@@ -72,29 +73,33 @@ impl HardwareProfile {
         }
     }
 
+    #[must_use] 
     pub fn is_low_end(&self) -> bool {
         self.tier == HardwareTier::LowEndBudget
     }
 
     /// For low-end PCs, high-precision timer (0.5ms) adds DPC overhead — use 1ms instead.
-    pub fn optimal_timer_resolution_100ns(&self) -> u32 {
+    #[must_use] 
+    pub const fn optimal_timer_resolution_100ns(&self) -> u32 {
         match self.tier {
-            HardwareTier::LowEndBudget    => 10_000,  // 1.0ms — low overhead
-            HardwareTier::MidRangeStandard => 7_500,   // 0.75ms
-            HardwareTier::HighEndEnthusiast => 5_000,  // 0.5ms — maximum precision
+            HardwareTier::LowEndBudget => 10_000,    // 1.0ms — low overhead
+            HardwareTier::MidRangeStandard => 7_500, // 0.75ms
+            HardwareTier::HighEndEnthusiast => 5_000, // 0.5ms — maximum precision
         }
     }
 
     /// Emergency RAM trigger threshold — lower for PCs with less headroom.
-    pub fn emergency_ram_threshold(&self) -> f32 {
+    #[must_use] 
+    pub const fn emergency_ram_threshold(&self) -> f32 {
         match self.tier {
-            HardwareTier::LowEndBudget    => 80.0, // trigger earlier on scarce RAM
+            HardwareTier::LowEndBudget => 80.0, // trigger earlier on scarce RAM
             HardwareTier::MidRangeStandard => 87.0,
             HardwareTier::HighEndEnthusiast => 92.0,
         }
     }
 
-    pub fn tier_name(&self) -> &'static str {
+    #[must_use] 
+    pub const fn tier_name(&self) -> &'static str {
         match self.tier {
             HardwareTier::LowEndBudget => "Budget / Legacy PC (Ultra-Smooth Smoothness Mode)",
             HardwareTier::MidRangeStandard => "Standard Balanced Performance Profile",

@@ -1,6 +1,6 @@
-use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
-use windows::core::HSTRING;
 use std::path::PathBuf;
+use windows::core::HSTRING;
+use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 
 pub struct DiskPressureSensor {
     pub usage_percent: f32,
@@ -8,7 +8,14 @@ pub struct DiskPressureSensor {
     pub total_gb: f64,
 }
 
+impl Default for DiskPressureSensor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiskPressureSensor {
+    #[must_use] 
     pub fn new() -> Self {
         let mut sensor = Self {
             usage_percent: 0.0,
@@ -28,9 +35,9 @@ impl DiskPressureSensor {
         let ok = unsafe {
             GetDiskFreeSpaceExW(
                 &drive,
-                Some(&mut free_bytes),
-                Some(&mut total_bytes),
-                Some(&mut _total_free),
+                Some(&raw mut free_bytes),
+                Some(&raw mut total_bytes),
+                Some(&raw mut _total_free),
             )
         };
 
@@ -42,13 +49,12 @@ impl DiskPressureSensor {
         }
     }
 
+    #[must_use] 
     pub fn clean_temp_files(&self) -> (u64, u32) {
         let dirs_to_clean = vec![
             std::env::temp_dir(),
             PathBuf::from(r"C:\Windows\Temp"),
-            std::env::var("LOCALAPPDATA")
-                .map(|p| PathBuf::from(p).join("Temp"))
-                .unwrap_or_else(|_| std::env::temp_dir()),
+            std::env::var("LOCALAPPDATA").map_or_else(|_| std::env::temp_dir(), |p| PathBuf::from(p).join("Temp")),
         ];
 
         let mut cleaned_bytes: u64 = 0;
@@ -76,12 +82,11 @@ impl DiskPressureSensor {
                                 cleaned_bytes += size;
                                 cleaned_files += 1;
                             }
-                        } else if path.is_dir() {
-                            if std::fs::remove_dir_all(&path).is_ok() {
+                        } else if path.is_dir()
+                            && std::fs::remove_dir_all(&path).is_ok() {
                                 cleaned_bytes += size;
                                 cleaned_files += 1;
                             }
-                        }
                     }
                 }
             }

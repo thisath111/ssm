@@ -1,4 +1,4 @@
-use winreg::enums::*;
+use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_ALL_ACCESS};
 use winreg::RegKey;
 
 const MOUSE_KEY: &str = r"Control Panel\Mouse";

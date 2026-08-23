@@ -1,24 +1,31 @@
-use std::collections::{HashSet, HashMap};
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
-use sysinfo::System;
-use crate::utils::{config::Config, win32};
-use crate::sensors::{
-    audio::AudioSensor, disk_pressure::DiskPressureSensor, gaming::GamingSensor,
-};
-use crate::core::{
-    cpu::CpuManager, dwm::DwmLatencyOptimizer, explorer_watchdog::ExplorerWatchdog,
-    freeze_guard::{FreezeGuard, FreezeGuardHeartbeat},
-    gpu::GpuManager, input_latency::InputLatencyOptimizer, io_scheduler::IoScheduler,
-    large_pages::LargePageOptimizer, math_engine::{KalmanPredictor, PidController},
-    network::NetworkOptimizer, nvme_accelerator::NvmeAccelerator, ram::RamManager,
-    registry_tweaker::RegistryTweaker, service_tuner::ServiceTuner,
-    stability_shield::StabilityShield, timer_resolution::TimerResolutionManager,
-};
 use crate::ai::{
-    HardwareProfile, ProcessIntent, ProcessIntentClassifier, PredictiveMemoryForecaster,
+    HardwareProfile, PredictiveMemoryForecaster, ProcessIntent, ProcessIntentClassifier,
     SystemWorkloadState, WorkloadStateMachine,
 };
+use crate::core::{
+    cpu::CpuManager,
+    dwm::DwmLatencyOptimizer,
+    explorer_watchdog::ExplorerWatchdog,
+    freeze_guard::{FreezeGuard, FreezeGuardHeartbeat},
+    gpu::GpuManager,
+    input_latency::InputLatencyOptimizer,
+    io_scheduler::IoScheduler,
+    large_pages::LargePageOptimizer,
+    math_engine::{KalmanPredictor, PidController},
+    network::NetworkOptimizer,
+    nvme_accelerator::NvmeAccelerator,
+    ram::RamManager,
+    registry_tweaker::RegistryTweaker,
+    service_tuner::ServiceTuner,
+    stability_shield::StabilityShield,
+    timer_resolution::TimerResolutionManager,
+};
+use crate::sensors::{audio::AudioSensor, disk_pressure::DiskPressureSensor, gaming::GamingSensor};
+use crate::utils::{config::Config, win32};
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
+use sysinfo::System;
 
 pub struct SystemEngine {
     pub sys: System,
@@ -45,13 +52,14 @@ pub struct SystemEngine {
     last_foreground_pid: u32,
     pub service_tuner: ServiceTuner,
     pub hardware_profile: HardwareProfile,
-    
+
     // Zero-Allocation Buffers
     current_pids_buf: HashSet<u32>,
     expired_boosts_buf: Vec<(u32, u32)>,
 }
 
 impl SystemEngine {
+    #[must_use] 
     pub fn new(config: Config) -> Self {
         let mut sys = System::new_all();
         sys.refresh_all();
@@ -95,15 +103,25 @@ impl SystemEngine {
             expired_boosts_buf: Vec::with_capacity(32),
         };
 
-        for (pid, _) in engine.sys.processes() {
+        for pid in engine.sys.processes().keys() {
             engine.active_pids.insert(pid.as_u32());
         }
 
-        let _ = InputLatencyOptimizer::optimize_all();
-        let _ = RegistryTweaker::apply_performance_tweaks();
-        let _ = DwmLatencyOptimizer::optimize_dwm_latency();
-        let _ = NetworkOptimizer::disable_tcp_nagle();
-        let _ = NvmeAccelerator::optimize_storage_stack();
+        if let Err(e) = InputLatencyOptimizer::optimize_all() {
+            log::warn!("Failed to optimize input latency: {e}");
+        }
+        if let Err(e) = RegistryTweaker::apply_performance_tweaks() {
+            log::warn!("Failed to apply registry tweaks: {e}");
+        }
+        if let Err(e) = DwmLatencyOptimizer::optimize_dwm_latency() {
+            log::warn!("Failed to optimize DWM latency: {e}");
+        }
+        if let Err(e) = NetworkOptimizer::disable_tcp_nagle() {
+            log::warn!("Failed to optimize network: {e}");
+        }
+        if let Err(e) = NvmeAccelerator::optimize_storage_stack() {
+            log::warn!("Failed to optimize NVMe stack: {e}");
+        }
 
         // Apply hardware-adaptive timer resolution to avoid DPC overhead on low-end PCs
         if engine.config.enable_high_precision_timer {
@@ -112,10 +130,11 @@ impl SystemEngine {
         }
 
         // Wire hardware-adaptive emergency thresholds into AI State Machine
-        engine.ai_workload_state.emergency_ram_threshold = engine.hardware_profile.emergency_ram_threshold();
+        engine.ai_workload_state.emergency_ram_threshold =
+            engine.hardware_profile.emergency_ram_threshold();
         engine.ai_workload_state.emergency_cpu_threshold = match engine.hardware_profile.tier {
-            crate::ai::HardwareTier::LowEndBudget     => 88.0,
-            crate::ai::HardwareTier::MidRangeStandard  => 92.0,
+            crate::ai::HardwareTier::LowEndBudget => 88.0,
+            crate::ai::HardwareTier::MidRangeStandard => 92.0,
             crate::ai::HardwareTier::HighEndEnthusiast => 95.0,
         };
 
@@ -127,15 +146,17 @@ impl SystemEngine {
         self.tick_count += 1;
 
         // Update heartbeat for watchdog
-        self.heartbeat.tick.store(self.tick_count, Ordering::Relaxed);
+        self.heartbeat
+            .tick
+            .store(self.tick_count, Ordering::Relaxed);
 
         let foreground_hwnd = win32::get_foreground_hwnd();
         let foreground_pid = foreground_hwnd
-            .map(|h| win32::get_process_id_from_hwnd(h))
-            .unwrap_or(0);
+            .map_or(0, win32::get_process_id_from_hwnd);
 
         // Tier 1: Fast FG Boost, App Launch Accel & AI Intent
-        self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+        self.sys
+            .refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
         let window_pids = win32::get_all_window_owner_pids();
 
@@ -150,14 +171,8 @@ impl SystemEngine {
                 let name = process.name().to_string_lossy();
                 let mem_mb = process.memory() / (1024 * 1024);
                 let cpu_p = process.cpu_usage();
-                self.last_detected_intent = ProcessIntentClassifier::classify(
-                    &name,
-                    mem_mb,
-                    cpu_p,
-                    true,
-                    16,
-                    has_win,
-                );
+                self.last_detected_intent =
+                    ProcessIntentClassifier::classify(&name, mem_mb, cpu_p, true, 16, has_win);
             }
 
             // App Launch Acceleration
@@ -165,7 +180,8 @@ impl SystemEngine {
                 let name = process.name().to_string_lossy();
                 if p_u32 > 4 && !StabilityShield::is_immune(p_u32, &name) {
                     if let Some(orig_prio) = self.cpu_mgr.boost_process_priority(p_u32) {
-                        self.boosted_pids.insert(p_u32, (self.tick_count, orig_prio));
+                        self.boosted_pids
+                            .insert(p_u32, (self.tick_count, orig_prio));
                     }
                 }
             }
@@ -174,12 +190,12 @@ impl SystemEngine {
 
         // Revert expired launch boosts (3s limit)
         self.expired_boosts_buf.clear();
-        for (&pid, &(start_tick, orig_prio)) in self.boosted_pids.iter() {
+        for (&pid, &(start_tick, orig_prio)) in &self.boosted_pids {
             if self.tick_count.saturating_sub(start_tick) >= 3 {
                 self.expired_boosts_buf.push((pid, orig_prio));
             }
         }
-        for (pid, orig_prio) in self.expired_boosts_buf.iter() {
+        for (pid, orig_prio) in &self.expired_boosts_buf {
             self.cpu_mgr.restore_process_priority(*pid, *orig_prio);
             self.boosted_pids.remove(pid);
         }
@@ -189,10 +205,12 @@ impl SystemEngine {
             if self.last_foreground_pid > 4 {
                 IoScheduler::restore_process_io(self.last_foreground_pid);
             }
-            
+
             // Prioritize the new foreground process
             if foreground_pid > 4 {
-                let foreground_name = self.sys.process(sysinfo::Pid::from_u32(foreground_pid))
+                let foreground_name = self
+                    .sys
+                    .process(sysinfo::Pid::from_u32(foreground_pid))
                     .map(|p| p.name().to_string_lossy().to_string())
                     .unwrap_or_default();
                 if !StabilityShield::is_immune(foreground_pid, &foreground_name) {
@@ -210,12 +228,14 @@ impl SystemEngine {
         let ram_used_p = self.ram_mgr.sensor.usage_percent;
         self.ai_forecaster.record_and_predict(ram_used_p);
 
-        if self.config.enable_standby_purging && self.ai_forecaster.should_preemptively_purge(ram_used_p) {
+        if self.config.enable_standby_purging
+            && self.ai_forecaster.should_preemptively_purge(ram_used_p)
+        {
             self.ram_mgr.purge_standby_memory();
         }
 
         // Tier 2: AI State Machine (3s interval)
-        if self.tick_count % 3 == 0 {
+        if self.tick_count.is_multiple_of(3) {
             self.sys.refresh_cpu_usage();
 
             let raw_cpu = self.sys.global_cpu_usage();
@@ -260,13 +280,17 @@ impl SystemEngine {
                 let p_u32 = pid.as_u32();
                 let name = process.name().to_string_lossy().to_lowercase();
                 // Dynamic check: NEVER throttle active interactive/typing window owners!
-                if p_u32 == foreground_pid || p_u32 == self_pid || StabilityShield::is_immune(p_u32, &name) || window_pids.contains(&p_u32) {
+                if p_u32 == foreground_pid
+                    || p_u32 == self_pid
+                    || StabilityShield::is_immune(p_u32, &name)
+                    || window_pids.contains(&p_u32)
+                {
                     continue;
                 }
 
                 // Behavioral detection: High I/O + Low CPU = background disk hog (no name hardcoding)
                 let mem_mb = process.memory() / (1024 * 1024);
-                let cpu_p  = process.cpu_usage();
+                let cpu_p = process.cpu_usage();
                 let is_bg_disk_hog = cpu_p < 5.0
                     && mem_mb < self.hardware_profile.ram_pressure_trim_mb * 2
                     && process.status() != sysinfo::ProcessStatus::Run;
@@ -275,9 +299,14 @@ impl SystemEngine {
                     if self.hardware_profile.enable_aggressive_io_throttle {
                         unsafe {
                             if let Ok(handle) = windows::Win32::System::Threading::OpenProcess(
-                                windows::Win32::System::Threading::PROCESS_SET_INFORMATION, false, p_u32
+                                windows::Win32::System::Threading::PROCESS_SET_INFORMATION,
+                                false,
+                                p_u32,
                             ) {
-                                crate::utils::nt_api::set_process_io_priority(handle, self.hardware_profile.max_background_io_prio);
+                                crate::utils::nt_api::set_process_io_priority(
+                                    handle,
+                                    self.hardware_profile.max_background_io_prio,
+                                );
                                 let _ = windows::Win32::Foundation::CloseHandle(handle);
                             }
                         }
@@ -293,7 +322,7 @@ impl SystemEngine {
         }
 
         // Tier 3: Audio & WorkingSet Maintenance (10s interval)
-        if self.tick_count % 10 == 0 {
+        if self.tick_count.is_multiple_of(10) {
             self.cached_audio_pids = self.audio_sensor.get_active_audio_pids();
 
             let mut protected = vec![foreground_pid, std::process::id()];
@@ -315,7 +344,7 @@ impl SystemEngine {
         }
 
         // Tier 4: Storage & Standby Purge (30s interval)
-        if self.tick_count % 30 == 0 {
+        if self.tick_count.is_multiple_of(30) {
             self.disk_sensor.update();
             if self.disk_sensor.usage_percent > self.config.disk_auto_clean_percent {
                 self.disk_sensor.clean_temp_files();
@@ -323,11 +352,15 @@ impl SystemEngine {
 
             // Standby purge threshold: hardware-adaptive (Low-end PCs need more aggressive purging)
             let standby_purge_threshold_mb = match self.hardware_profile.tier {
-                crate::ai::HardwareTier::LowEndBudget     => self.hardware_profile.total_ram_mb / 8, // 12.5% of total RAM
-                crate::ai::HardwareTier::MidRangeStandard  => self.hardware_profile.total_ram_mb / 6, // ~16%
-                crate::ai::HardwareTier::HighEndEnthusiast => self.hardware_profile.total_ram_mb / 4, // 25%
+                crate::ai::HardwareTier::LowEndBudget => self.hardware_profile.total_ram_mb / 8, // 12.5% of total RAM
+                crate::ai::HardwareTier::MidRangeStandard => self.hardware_profile.total_ram_mb / 6, // ~16%
+                crate::ai::HardwareTier::HighEndEnthusiast => {
+                    self.hardware_profile.total_ram_mb / 4
+                } // 25%
             };
-            if self.config.enable_standby_purging && self.ram_mgr.sensor.available_mb < standby_purge_threshold_mb {
+            if self.config.enable_standby_purging
+                && self.ram_mgr.sensor.available_mb < standby_purge_threshold_mb
+            {
                 self.ram_mgr.purge_standby_memory();
             }
         }

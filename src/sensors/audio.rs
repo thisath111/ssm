@@ -1,19 +1,27 @@
 use std::collections::HashSet;
 use windows::core::Interface;
-use windows::Win32::System::Com::*;
-use windows::Win32::Media::Audio::*;
+use windows::Win32::Media::Audio::{IMMDeviceEnumerator, MMDeviceEnumerator, eRender, eCapture, IMMDeviceEnumerator_Impl, eConsole, IMMDeviceActivator_Impl, IPart_Impl, IAudioSessionManager2, IAudioSessionManager2_Impl, IAudioFormatEnumerator_Impl, IAudioSessionEnumerator_Impl, IMMDeviceCollection_Impl, IPartsList_Impl, IAudioSessionControl_Impl, AudioSessionStateActive, IAudioSessionControl2, IAudioSessionControl2_Impl};
+use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED, CoCreateInstance, CLSCTX_ALL, IAsyncManager_Impl, IRpcChannelBuffer3_Impl, CoUninitialize};
 
 pub struct AudioSensor {
     com_initialized: bool,
 }
 
+impl Default for AudioSensor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioSensor {
+    #[must_use] 
     pub fn new() -> Self {
         let result = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
         let com_initialized = result.is_ok() || result == windows::core::HRESULT(1);
         Self { com_initialized }
     }
 
+    #[must_use] 
     pub fn get_active_audio_pids(&self) -> HashSet<u32> {
         let mut pids = HashSet::new();
         if !self.com_initialized {
@@ -27,14 +35,17 @@ impl AudioSensor {
             if let Ok(enumerator) = enumerator_res {
                 for &direction in &[eRender, eCapture] {
                     if let Ok(dev) = enumerator.GetDefaultAudioEndpoint(direction, eConsole) {
-                        if let Ok(manager) = dev.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None) {
+                        if let Ok(manager) = dev.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None)
+                        {
                             if let Ok(session_enum) = manager.GetSessionEnumerator() {
                                 if let Ok(count) = session_enum.GetCount() {
                                     for i in 0..count {
                                         if let Ok(ctrl) = session_enum.GetSession(i) {
                                             if let Ok(state) = ctrl.GetState() {
                                                 if state == AudioSessionStateActive {
-                                                    if let Ok(ctrl2) = ctrl.cast::<IAudioSessionControl2>() {
+                                                    if let Ok(ctrl2) =
+                                                        ctrl.cast::<IAudioSessionControl2>()
+                                                    {
                                                         if let Ok(pid) = ctrl2.GetProcessId() {
                                                             if pid > 0 {
                                                                 pids.insert(pid);

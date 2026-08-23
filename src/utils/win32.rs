@@ -1,15 +1,16 @@
 use std::mem;
-use windows::Win32::Foundation::*;
-use windows::Win32::System::Threading::*;
-use windows::Win32::Security::*;
-use windows::Win32::UI::WindowsAndMessaging::*;
-use windows::Win32::Graphics::Gdi::*;
+use windows::Win32::Foundation::{HANDLE, CloseHandle, LUID, HWND, RECT, WPARAM, LPARAM};
+use windows::Win32::Graphics::Gdi::{MonitorFromWindow, MONITOR_DEFAULTTONEAREST, MONITORINFO, GetMonitorInfoW};
+use windows::Win32::Security::{TOKEN_QUERY, TOKEN_ELEVATION, GetTokenInformation, TokenElevation, TOKEN_ADJUST_PRIVILEGES, TOKEN_PRIVILEGES, LUID_AND_ATTRIBUTES, SE_PRIVILEGE_ENABLED, AdjustTokenPrivileges};
+use windows::Win32::System::Threading::{OpenProcessToken, GetCurrentProcess, PROCESS_ACCESS_RIGHTS, OpenProcess};
+use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId, IsHungAppWindow, GetWindowRect, SendMessageTimeoutW, HWND_BROADCAST, WM_SETTINGCHANGE, SMTO_ABORTIFHUNG};
 
 /// Checks if current process is running with Administrator privileges.
+#[must_use] 
 pub fn is_elevated() -> bool {
     unsafe {
         let mut token = HANDLE::default();
-        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &raw mut token).is_err() {
             return false;
         }
         let mut elevation = TOKEN_ELEVATION::default();
@@ -17,31 +18,47 @@ pub fn is_elevated() -> bool {
         let res = GetTokenInformation(
             token,
             TokenElevation,
-            Some(&mut elevation as *mut _ as *mut _),
+            Some((&raw mut elevation).cast()),
             size,
-            &mut size,
+            &raw mut size,
         );
         let _ = CloseHandle(token);
         res.is_ok() && elevation.TokenIsElevated != 0
     }
 }
 
-/// Enables specified privilege (e.g., SeDebugPrivilege, SeIncreaseBasePriorityPrivilege) for process token.
+/// Enables specified privilege (e.g., `SeDebugPrivilege`, `SeIncreaseBasePriorityPrivilege`) for process token.
+#[must_use] 
 pub fn enable_privilege(privilege_name: &str) -> bool {
     unsafe {
         let mut token = HANDLE::default();
-        if OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &mut token).is_err() {
+        if OpenProcessToken(
+            GetCurrentProcess(),
+            TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY,
+            &raw mut token,
+        )
+        .is_err()
+        {
             return false;
         }
 
         let mut luid = LUID::default();
-        let name_u16: Vec<u16> = privilege_name.encode_utf16().chain(std::iter::once(0)).collect();
-        if windows::Win32::Security::LookupPrivilegeValueW(None, windows::core::PCWSTR(name_u16.as_ptr()), &mut luid).is_err() {
+        let name_u16: Vec<u16> = privilege_name
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
+        if windows::Win32::Security::LookupPrivilegeValueW(
+            None,
+            windows::core::PCWSTR(name_u16.as_ptr()),
+            &raw mut luid,
+        )
+        .is_err()
+        {
             let _ = CloseHandle(token);
             return false;
         }
 
-        let mut tp = TOKEN_PRIVILEGES {
+        let tp = TOKEN_PRIVILEGES {
             PrivilegeCount: 1,
             Privileges: [LUID_AND_ATTRIBUTES {
                 Luid: luid,
@@ -49,13 +66,14 @@ pub fn enable_privilege(privilege_name: &str) -> bool {
             }],
         };
 
-        let res = AdjustTokenPrivileges(token, false, Some(&mut tp), 0, None, None);
+        let res = AdjustTokenPrivileges(token, false, Some(&raw const tp), 0, None, None);
         let _ = CloseHandle(token);
         res.is_ok()
     }
 }
 
 /// Safely opens a handle to a process with requested access rights.
+#[must_use] 
 pub fn open_process(pid: u32, access: PROCESS_ACCESS_RIGHTS) -> Option<HANDLE> {
     if pid <= 4 {
         return None;
@@ -71,6 +89,7 @@ pub fn close_handle(h: HANDLE) {
 }
 
 /// Returns HWND of current foreground active window.
+#[must_use] 
 pub fn get_foreground_hwnd() -> Option<HWND> {
     unsafe {
         let hwnd = GetForegroundWindow();
@@ -83,24 +102,27 @@ pub fn get_foreground_hwnd() -> Option<HWND> {
 }
 
 /// Returns process ID for given HWND.
+#[must_use] 
 pub fn get_process_id_from_hwnd(hwnd: HWND) -> u32 {
     unsafe {
         let mut pid: u32 = 0;
-        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        GetWindowThreadProcessId(hwnd, Some(&raw mut pid));
         pid
     }
 }
 
 /// Checks if window is currently unresponsive / hung.
+#[must_use] 
 pub fn is_window_hung(hwnd: HWND) -> bool {
     unsafe { IsHungAppWindow(hwnd).as_bool() }
 }
 
 /// Checks if window occupies full monitor workspace (game/video player).
+#[must_use] 
 pub fn is_fullscreen(hwnd: HWND) -> bool {
     unsafe {
         let mut win_rect = RECT::default();
-        if GetWindowRect(hwnd, &mut win_rect).is_err() {
+        if GetWindowRect(hwnd, &raw mut win_rect).is_err() {
             return false;
         }
 
@@ -113,7 +135,7 @@ pub fn is_fullscreen(hwnd: HWND) -> bool {
             cbSize: mem::size_of::<MONITORINFO>() as u32,
             ..Default::default()
         };
-        if !GetMonitorInfoW(hmon, &mut info).as_bool() {
+        if !GetMonitorInfoW(hmon, &raw mut info).as_bool() {
             return false;
         }
 
@@ -127,7 +149,7 @@ pub fn is_fullscreen(hwnd: HWND) -> bool {
 
 /// Registers current executable directory into Windows User Environment PATH registry key.
 pub fn register_in_path() -> Result<bool, Box<dyn std::error::Error>> {
-    use winreg::enums::*;
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
     use winreg::RegKey;
 
     let exe_path = std::env::current_exe()?;
@@ -145,7 +167,10 @@ pub fn register_in_path() -> Result<bool, Box<dyn std::error::Error>> {
     let current_path: String = env.get_value("Path").unwrap_or_default();
 
     let paths: Vec<&str> = current_path.split(';').collect();
-    if paths.iter().any(|&p| p.trim().eq_ignore_ascii_case(dir_str)) {
+    if paths
+        .iter()
+        .any(|&p| p.trim().eq_ignore_ascii_case(dir_str))
+    {
         return Ok(false);
     }
 
@@ -174,7 +199,6 @@ pub fn register_in_path() -> Result<bool, Box<dyn std::error::Error>> {
 }
 
 extern "system" {
-    fn ProcessIdToSessionId(dwProcessId: u32, pSessionId: *mut u32) -> i32;
 
     // Link to real Windows EnumWindows API using a Rust-safe raw signature (i32 BOOL)
     #[link_name = "EnumWindows"]
@@ -189,7 +213,7 @@ pub fn get_all_window_owner_pids() -> std::collections::HashSet<u32> {
     unsafe extern "system" fn callback(hwnd: isize, lparam: isize) -> i32 {
         let mut pid: u32 = 0;
         unsafe {
-            GetWindowThreadProcessId(HWND(hwnd as *mut _), Some(&mut pid));
+            GetWindowThreadProcessId(HWND(hwnd as *mut _), Some(&raw mut pid));
         }
         if pid > 0 {
             let set = unsafe { &mut *(lparam as *mut std::collections::HashSet<u32>) };
@@ -200,15 +224,7 @@ pub fn get_all_window_owner_pids() -> std::collections::HashSet<u32> {
 
     let mut set: std::collections::HashSet<u32> = std::collections::HashSet::with_capacity(128);
     unsafe {
-        enum_windows_raw(callback, &mut set as *mut _ as isize);
+        enum_windows_raw(callback, &raw mut set as isize);
     }
     set
 }
-
-/// Checks if a process belongs to Windows System Service Session (Session 0).
-pub fn is_session_zero(pid: u32) -> bool {
-    let mut session_id = 0u32;
-    let res = unsafe { ProcessIdToSessionId(pid, &mut session_id) };
-    res != 0 && session_id == 0
-}
-

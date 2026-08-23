@@ -4,8 +4,15 @@ pub struct TimerResolutionManager {
     is_boosted: bool,
 }
 
+impl Default for TimerResolutionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimerResolutionManager {
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self { is_boosted: false }
     }
 
@@ -41,7 +48,8 @@ impl TimerResolutionManager {
         self.is_boosted = false;
     }
 
-    pub fn is_boosted(&self) -> bool {
+    #[must_use] 
+    pub const fn is_boosted(&self) -> bool {
         self.is_boosted
     }
 }

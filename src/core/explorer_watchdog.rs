@@ -1,13 +1,20 @@
+use crate::core::ram::RamManager;
 use sysinfo::System;
 use windows::Win32::UI::WindowsAndMessaging::{GetShellWindow, IsHungAppWindow};
-use crate::core::ram::RamManager;
 
 pub struct ExplorerWatchdog {
     last_check_tick: u64,
 }
 
+impl Default for ExplorerWatchdog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExplorerWatchdog {
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self { last_check_tick: 0 }
     }
 
@@ -19,22 +26,26 @@ impl ExplorerWatchdog {
 
         // Auto-Rescue: Restart Explorer if hung
         if Self::is_shell_hung() {
-            let _ = std::process::Command::new("taskkill").args(&["/F", "/IM", "explorer.exe"]).spawn();
-            let _ = std::process::Command::new("cmd").args(&["/c", "start explorer.exe"]).spawn();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/F", "/IM", "explorer.exe"])
+                .spawn();
+            let _ = std::process::Command::new("cmd")
+                .args(["/c", "start explorer.exe"])
+                .spawn();
             return;
         }
 
         let limit_bytes = limit_mb * 1024 * 1024;
         for (pid, process) in sys.processes() {
             let name = process.name().to_string_lossy().to_lowercase();
-            if name == "explorer.exe" {
-                if process.memory() > limit_bytes {
+            if name == "explorer.exe"
+                && process.memory() > limit_bytes {
                     ram_mgr.trim_single_process(pid.as_u32());
                 }
-            }
         }
     }
 
+    #[must_use] 
     pub fn is_shell_hung() -> bool {
         unsafe {
             let shell_hwnd = GetShellWindow();

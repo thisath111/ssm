@@ -40,6 +40,7 @@ impl Default for Config {
 }
 
 impl Config {
+    #[must_use] 
     pub fn get_config_path() -> PathBuf {
         if let Ok(exe) = std::env::current_exe() {
             let mut path = exe;
@@ -50,6 +51,7 @@ impl Config {
         }
     }
 
+    #[must_use] 
     pub fn load() -> Self {
         let path = Self::get_config_path();
         if let Ok(contents) = fs::read_to_string(&path) {

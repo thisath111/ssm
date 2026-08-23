@@ -1,11 +1,12 @@
-use windows::Win32::System::Threading::{OpenProcess, PROCESS_SET_INFORMATION};
-use windows::Win32::Foundation::CloseHandle;
 use crate::utils::nt_api;
+use windows::Win32::Foundation::CloseHandle;
+use windows::Win32::System::Threading::{OpenProcess, PROCESS_SET_INFORMATION};
 
 pub struct IoScheduler;
 
 impl IoScheduler {
     /// Sets process I/O priority (0 = Very Low, 1 = Low, 2 = Normal, 3 = High).
+    #[must_use] 
     pub fn set_io_priority(pid: u32, priority: u32) -> bool {
         if pid <= 4 {
             return false;
@@ -21,6 +22,7 @@ impl IoScheduler {
     }
 
     /// Sets process memory page priority (1 = Lowest, 5 = Normal/High).
+    #[must_use] 
     pub fn set_page_priority(pid: u32, priority: u32) -> bool {
         if pid <= 4 {
             return false;

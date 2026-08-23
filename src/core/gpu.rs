@@ -1,4 +1,4 @@
-use winreg::enums::*;
+use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_ALL_ACCESS};
 use winreg::RegKey;
 
 const GPU_SCHEDULER_KEY: &str = r"SYSTEM\CurrentControlSet\Control\GraphicsDrivers";
@@ -11,8 +11,15 @@ pub struct GpuManager {
     original_gpu_priority: Option<u32>,
 }
 
+impl Default for GpuManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GpuManager {
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self {
             is_boosted: false,
             original_hags: None,
@@ -26,7 +33,7 @@ impl GpuManager {
         }
 
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-        
+
         // Backup & Enable Hardware-Accelerated GPU Scheduling (HAGS = 2)
         if let Ok(key) = hklm.open_subkey_with_flags(GPU_SCHEDULER_KEY, KEY_ALL_ACCESS) {
             if let Ok(val) = key.get_value::<u32, _>("HwSchMode") {

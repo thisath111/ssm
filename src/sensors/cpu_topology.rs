@@ -20,6 +20,7 @@ pub struct CpuTopology {
 }
 
 impl CpuTopology {
+    #[must_use] 
     pub fn detect() -> Self {
         let mut total_logical = num_cpus();
         if total_logical == 0 {
@@ -36,18 +37,14 @@ impl CpuTopology {
 
         unsafe {
             let mut buf_size: u32 = 0;
-            let _ = GetLogicalProcessorInformationEx(
-                RelationProcessorCore,
-                None,
-                &mut buf_size,
-            );
+            let _ = GetLogicalProcessorInformationEx(RelationProcessorCore, None, &raw mut buf_size);
 
             if buf_size > 0 {
                 let mut buffer: Vec<u8> = vec![0; buf_size as usize];
                 if GetLogicalProcessorInformationEx(
                     RelationProcessorCore,
-                    Some(buffer.as_mut_ptr() as *mut _),
-                    &mut buf_size,
+                    Some(buffer.as_mut_ptr().cast()),
+                    &raw mut buf_size,
                 )
                 .is_ok()
                 {
@@ -58,7 +55,7 @@ impl CpuTopology {
 
                     let mut core_idx = 0;
                     while ptr < end {
-                        let info = &*(ptr as *const SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX);
+                        let info = &*ptr.cast::<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>();
                         if info.Relationship == RelationProcessorCore {
                             let core = &info.Anonymous.Processor;
                             let group_mask = core.GroupMask[0].Mask as usize;
@@ -114,7 +111,7 @@ impl CpuTopology {
 fn num_cpus() -> usize {
     unsafe {
         let mut sys_info = std::mem::zeroed();
-        windows::Win32::System::SystemInformation::GetSystemInfo(&mut sys_info);
+        windows::Win32::System::SystemInformation::GetSystemInfo(&raw mut sys_info);
         sys_info.dwNumberOfProcessors as usize
     }
 }

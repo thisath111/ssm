@@ -1,10 +1,14 @@
+use crate::sensors::ram_pressure::{RamPressureLevel, RamPressureSensor};
+use crate::utils::nt_api;
 use std::collections::HashSet;
 use sysinfo::System;
-use windows::Win32::System::Threading::{OpenProcess, PROCESS_SET_QUOTA, PROCESS_QUERY_INFORMATION};
-use windows::Win32::System::Memory::{SetProcessWorkingSetSizeEx, SETPROCESSWORKINGSETSIZEEX_FLAGS};
 use windows::Win32::Foundation::CloseHandle;
-use crate::utils::nt_api;
-use crate::sensors::ram_pressure::{RamPressureSensor, RamPressureLevel};
+use windows::Win32::System::Memory::{
+    SetProcessWorkingSetSizeEx, SETPROCESSWORKINGSETSIZEEX_FLAGS,
+};
+use windows::Win32::System::Threading::{
+    OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_SET_QUOTA,
+};
 
 const QUOTA_LIMITS_HARDWS_MIN_DISABLE: u32 = 0x00000002;
 
@@ -14,7 +18,14 @@ pub struct RamManager {
     trimmed_pids: HashSet<u32>,
 }
 
+impl Default for RamManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RamManager {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             sensor: RamPressureSensor::new(),
@@ -24,12 +35,19 @@ impl RamManager {
     }
 
     /// Purges Standby List RAM without dumping active app memory to pagefile.
+    #[must_use] 
     pub fn purge_standby_memory(&self) -> bool {
         nt_api::purge_standby_list()
     }
 
     /// Trims physical working set for background processes safely under sustained RAM pressure.
-    pub fn trim_background_working_sets(&mut self, sys: &System, protected_pids: &[u32], tick_count: u64, min_memory_mb: u64) -> u32 {
+    pub fn trim_background_working_sets(
+        &mut self,
+        sys: &System,
+        protected_pids: &[u32],
+        tick_count: u64,
+        min_memory_mb: u64,
+    ) -> u32 {
         if tick_count.saturating_sub(self.last_trim_tick) < 20 {
             return 0;
         }
@@ -53,18 +71,18 @@ impl RamManager {
                 continue;
             }
 
-            if process.memory() > min_bytes {
-                if self.trim_single_process(pid_u32) {
+            if process.memory() > min_bytes
+                && self.trim_single_process(pid_u32) {
                     trimmed_count += 1;
                     self.trimmed_pids.insert(pid_u32);
                 }
-            }
         }
 
         trimmed_count
     }
 
     /// Safe single-process working set trim.
+    #[must_use] 
     pub fn trim_single_process(&self, pid: u32) -> bool {
         unsafe {
             let access = PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION;

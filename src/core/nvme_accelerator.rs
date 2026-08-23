@@ -1,4 +1,4 @@
-use winreg::enums::*;
+use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_ALL_ACCESS};
 use winreg::RegKey;
 
 const STORPORT_KEY: &str = r"SYSTEM\CurrentControlSet\Services\stornvme\Parameters\Device";
@@ -7,7 +7,7 @@ const FILESYSTEM_KEY: &str = r"SYSTEM\CurrentControlSet\Control\FileSystem";
 pub struct NvmeAccelerator;
 
 impl NvmeAccelerator {
-    /// Tunes NVMe driver & NTFS filesystem parameters for maximum SSD I/O throughput.
+    /// Tunes `NVMe` driver & NTFS filesystem parameters for maximum SSD I/O throughput.
     pub fn optimize_storage_stack() -> Result<(), Box<dyn std::error::Error>> {
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
 

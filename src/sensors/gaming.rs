@@ -1,23 +1,46 @@
-use sysinfo::{System, Pid};
 use crate::utils::win32;
+use sysinfo::{Pid, System};
 
 pub struct GamingSensor {
     known_game_signatures: Vec<&'static str>,
 }
 
+impl Default for GamingSensor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GamingSensor {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             known_game_signatures: vec![
-                "unreal", "unity", "csgo.exe", "cs2.exe", "valorant", "dota2.exe",
-                "r5apex.exe", "overwatch.exe", "cyberpunk2077.exe", "gta5.exe",
-                "fortnite", "leagueoflegends", "eldenring.exe", "starfield.exe",
-                "bg3.exe", "cod.exe", "steamapps", "pubg.exe", "genshinimpact.exe",
+                "unreal",
+                "unity",
+                "csgo.exe",
+                "cs2.exe",
+                "valorant",
+                "dota2.exe",
+                "r5apex.exe",
+                "overwatch.exe",
+                "cyberpunk2077.exe",
+                "gta5.exe",
+                "fortnite",
+                "leagueoflegends",
+                "eldenring.exe",
+                "starfield.exe",
+                "bg3.exe",
+                "cod.exe",
+                "steamapps",
+                "pubg.exe",
+                "genshinimpact.exe",
             ],
         }
     }
 
     /// Determines if a full-screen game or graphics intensive app is active in foreground.
+    #[must_use] 
     pub fn is_gaming_active(&self, sys: &System) -> bool {
         let foreground_hwnd = match win32::get_foreground_hwnd() {
             Some(h) => h,
@@ -33,7 +56,10 @@ impl GamingSensor {
 
         if let Some(process) = sys.process(Pid::from_u32(pid)) {
             let name = process.name().to_string_lossy().to_lowercase();
-            let exe_path = process.exe().map(|p| p.to_string_lossy().to_lowercase()).unwrap_or_default();
+            let exe_path = process
+                .exe()
+                .map(|p| p.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
 
             // Exclude desktop shell and browsers when playing fullscreen videos
             if name.contains("explorer")

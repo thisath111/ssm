@@ -10,7 +10,8 @@ pub struct PidController {
 }
 
 impl PidController {
-    pub fn new(kp: f32, ki: f32, kd: f32, output_min: f32, output_max: f32) -> Self {
+    #[must_use] 
+    pub const fn new(kp: f32, ki: f32, kd: f32, output_min: f32, output_max: f32) -> Self {
         Self {
             kp,
             ki,
@@ -29,11 +30,11 @@ impl PidController {
         }
 
         let error = setpoint - measured;
-        self.integral = (self.integral + error * dt).clamp(self.output_min, self.output_max);
+        self.integral = error.mul_add(dt, self.integral).clamp(self.output_min, self.output_max);
         let derivative = (error - self.prev_error) / dt;
         self.prev_error = error;
 
-        let output = (self.kp * error) + (self.ki * self.integral) + (self.kd * derivative);
+        let output = self.kd.mul_add(derivative, self.kp.mul_add(error, self.ki * self.integral));
         output.clamp(self.output_min, self.output_max)
     }
 }
@@ -48,7 +49,8 @@ pub struct KalmanPredictor {
 }
 
 impl KalmanPredictor {
-    pub fn new(process_noise: f32, measurement_noise: f32) -> Self {
+    #[must_use] 
+    pub const fn new(process_noise: f32, measurement_noise: f32) -> Self {
         Self {
             q: process_noise,
             r: measurement_noise,
@@ -61,17 +63,18 @@ impl KalmanPredictor {
     /// Filters raw measurement and returns optimal state estimate.
     pub fn update(&mut self, measurement: f32) -> f32 {
         // Prediction step
-        self.p = self.p + self.q;
+        self.p += self.q;
 
         // Update step
         self.k = self.p / (self.p + self.r);
-        self.x = self.x + self.k * (measurement - self.x);
-        self.p = (1.0 - self.k) * self.p;
+        self.x = self.k.mul_add(measurement - self.x, self.x);
+        self.p *= 1.0 - self.k;
 
         self.x
     }
 
-    pub fn get_estimate(&self) -> f32 {
+    #[must_use] 
+    pub const fn get_estimate(&self) -> f32 {
         self.x
     }
 }
@@ -84,8 +87,15 @@ pub struct PageFaultDerivator {
     pub second_derivative: f32,
 }
 
+impl Default for PageFaultDerivator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PageFaultDerivator {
-    pub fn new() -> Self {
+    #[must_use] 
+    pub const fn new() -> Self {
         Self {
             prev_faults: 0,
             prev_rate: 0.0,
@@ -170,4 +180,3 @@ mod tests {
         assert_eq!(pfd.second_derivative, 0.0); // constant rate -> second derivative is 0
     }
 }
-

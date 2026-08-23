@@ -1,20 +1,20 @@
 use crate::utils::win32;
 
-/// Large Pages (2MB / 4MB HugePages) & Compressed Memory Optimizer.
+/// Large Pages (2MB / 4MB `HugePages`) & Compressed Memory Optimizer.
 /// Minimizes Translation Lookaside Buffer (TLB) misses on CPU caches.
 pub struct LargePageOptimizer;
 
 impl LargePageOptimizer {
-    /// Grants and verifies the SeLockMemoryPrivilege required for Large Page allocations.
+    /// Grants and verifies the `SeLockMemoryPrivilege` required for Large Page allocations.
+    #[must_use] 
     pub fn enable_large_pages() -> bool {
         win32::enable_privilege("SeLockMemoryPrivilege")
     }
 
     /// Queries minimum large page size supported by the current processor (usually 2MB).
+    #[must_use] 
     pub fn get_large_page_minimum() -> usize {
-        unsafe {
-            windows::Win32::System::Memory::GetLargePageMinimum()
-        }
+        unsafe { windows::Win32::System::Memory::GetLargePageMinimum() }
     }
 }
 

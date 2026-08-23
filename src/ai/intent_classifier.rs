@@ -16,7 +16,8 @@ pub enum ProcessIntent {
 }
 
 impl ProcessIntent {
-    pub fn as_str(&self) -> &'static str {
+    #[must_use] 
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Gaming => "Gaming / Real-Time 3D",
             Self::CreativeWorkstation => "Creative Workstation (Video/3D/Audio)",
@@ -33,6 +34,7 @@ pub struct ProcessIntentClassifier;
 
 impl ProcessIntentClassifier {
     /// Dynamically classifies a process using pure behavioural metrics & OS topologies.
+    #[must_use] 
     pub fn classify(
         name: &str,
         memory_mb: u64,
