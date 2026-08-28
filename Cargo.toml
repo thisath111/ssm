@@ -1,6 +1,6 @@
 [package]
 name = "ssm"
-version = "1.1.0"
+version = "1.0.0"
 edition = "2021"
 description = "High-performance Windows System Optimizer & Low-Latency Daemon — 100% Native Rust"
 license = "MIT"
