@@ -15,7 +15,7 @@ impl Default for DiskPressureSensor {
 }
 
 impl DiskPressureSensor {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut sensor = Self {
             usage_percent: 0.0,
@@ -49,12 +49,13 @@ impl DiskPressureSensor {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn clean_temp_files(&self) -> (u64, u32) {
         let dirs_to_clean = vec![
             std::env::temp_dir(),
             PathBuf::from(r"C:\Windows\Temp"),
-            std::env::var("LOCALAPPDATA").map_or_else(|_| std::env::temp_dir(), |p| PathBuf::from(p).join("Temp")),
+            std::env::var("LOCALAPPDATA")
+                .map_or_else(|_| std::env::temp_dir(), |p| PathBuf::from(p).join("Temp")),
         ];
 
         let mut cleaned_bytes: u64 = 0;
@@ -82,11 +83,10 @@ impl DiskPressureSensor {
                                 cleaned_bytes += size;
                                 cleaned_files += 1;
                             }
-                        } else if path.is_dir()
-                            && std::fs::remove_dir_all(&path).is_ok() {
-                                cleaned_bytes += size;
-                                cleaned_files += 1;
-                            }
+                        } else if path.is_dir() && std::fs::remove_dir_all(&path).is_ok() {
+                            cleaned_bytes += size;
+                            cleaned_files += 1;
+                        }
                     }
                 }
             }

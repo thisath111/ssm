@@ -22,7 +22,7 @@ impl Default for RamPressureSensor {
 }
 
 impl RamPressureSensor {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut sensor = Self {
             level: RamPressureLevel::Normal,

@@ -33,7 +33,7 @@ pub struct FreezeGuardHeartbeat {
 }
 
 impl FreezeGuardHeartbeat {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             tick: AtomicU64::new(0),
@@ -120,7 +120,8 @@ impl FreezeGuard {
         }
 
         let idle_ticks = (u64::from(idle.dwHighDateTime) << 32) | u64::from(idle.dwLowDateTime);
-        let kernel_ticks = (u64::from(kernel.dwHighDateTime) << 32) | u64::from(kernel.dwLowDateTime);
+        let kernel_ticks =
+            (u64::from(kernel.dwHighDateTime) << 32) | u64::from(kernel.dwLowDateTime);
         let user_ticks = (u64::from(user.dwHighDateTime) << 32) | u64::from(user.dwLowDateTime);
         let total_ticks = kernel_ticks + user_ticks;
 
@@ -143,7 +144,7 @@ impl FreezeGuard {
         ((delta_total - delta_idle) as f32 / delta_total as f32) * 100.0
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn quick_ram_check() -> (f32, u64) {
         let mut mem = MEMORYSTATUSEX {
             dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
@@ -243,7 +244,7 @@ impl FreezeGuard {
 
         // Step 5: Purge standby memory
         info!("[FreezeGuard] Dynamic standby purge");
-        crate::utils::nt_api::purge_standby_list();
+        let _ = crate::utils::nt_api::purge_standby_list();
     }
 
     fn get_process_name_fast(pid: u32) -> String {

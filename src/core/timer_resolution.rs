@@ -11,7 +11,7 @@ impl Default for TimerResolutionManager {
 }
 
 impl TimerResolutionManager {
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self { is_boosted: false }
     }
@@ -48,7 +48,7 @@ impl TimerResolutionManager {
         self.is_boosted = false;
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn is_boosted(&self) -> bool {
         self.is_boosted
     }

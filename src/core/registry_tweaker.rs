@@ -1,4 +1,4 @@
-use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_ALL_ACCESS, KEY_READ, HKEY_CURRENT_USER};
+use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_ALL_ACCESS, KEY_READ};
 use winreg::RegKey;
 
 pub struct RegistryTweaker;
@@ -132,6 +132,33 @@ impl RegistryTweaker {
         if let Ok((key, _)) = hkcu.create_subkey_with_flags(game_bar_key, KEY_ALL_ACCESS) {
             let _ = key.set_value("AllowAutoGameMode", &1u32);
             let _ = key.set_value("AutoGameModeEnabled", &1u32);
+        }
+
+        // 12. Global Timer Resolution Override (Windows 11 Fix)
+        let sm_kernel_key = r"SYSTEM\CurrentControlSet\Control\Session Manager\kernel";
+        if let Ok(key) = hklm.open_subkey_with_flags(sm_kernel_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("GlobalTimerResolutionRequests", &1u32);
+        }
+
+        // 13. CPU Priority Separation (Favor Foreground Apps)
+        let prio_key = r"SYSTEM\CurrentControlSet\Control\PriorityControl";
+        if let Ok(key) = hklm.open_subkey_with_flags(prio_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("Win32PrioritySeparation", &0x26u32);
+        }
+
+        // 14. Disable USB Selective Suspend (Reduces Input Latency)
+        let usb_key = r"SYSTEM\CurrentControlSet\Services\USB";
+        if let Ok((key, _)) = hklm.create_subkey_with_flags(usb_key, KEY_ALL_ACCESS) {
+            let _ = key.set_value("DisableSelectiveSuspend", &1u32);
+        }
+
+        // 15. Windows Defender Self-Exclusion (Prevents scanning our own daemon mid-operation)
+        if let Ok(exe_path) = std::env::current_exe() {
+            let def_key = r"SOFTWARE\Microsoft\Windows Defender\Exclusions\Paths";
+            // Note: This requires high privileges. It might fail if Tamper Protection is on, which is fine.
+            if let Ok((key, _)) = hklm.create_subkey_with_flags(def_key, KEY_ALL_ACCESS) {
+                let _ = key.set_value(exe_path.to_string_lossy().as_ref(), &0u32);
+            }
         }
 
         Ok(())

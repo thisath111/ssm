@@ -13,7 +13,7 @@ impl Default for ExplorerWatchdog {
 }
 
 impl ExplorerWatchdog {
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self { last_check_tick: 0 }
     }
@@ -38,14 +38,13 @@ impl ExplorerWatchdog {
         let limit_bytes = limit_mb * 1024 * 1024;
         for (pid, process) in sys.processes() {
             let name = process.name().to_string_lossy().to_lowercase();
-            if name == "explorer.exe"
-                && process.memory() > limit_bytes {
-                    ram_mgr.trim_single_process(pid.as_u32());
-                }
+            if name == "explorer.exe" && process.memory() > limit_bytes {
+                let _ = ram_mgr.trim_single_process(pid.as_u32());
+            }
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_shell_hung() -> bool {
         unsafe {
             let shell_hwnd = GetShellWindow();

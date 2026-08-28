@@ -17,6 +17,8 @@ pub struct Config {
     pub disk_auto_clean_percent: f32,
     pub explorer_memory_limit_mb: u64,
     pub autostart_on_boot: bool,
+    pub auto_update_enabled: bool,
+    pub last_update_check_unix: u64,
 }
 
 impl Default for Config {
@@ -35,12 +37,14 @@ impl Default for Config {
             disk_auto_clean_percent: 90.0,
             explorer_memory_limit_mb: 2500,
             autostart_on_boot: true,
+            auto_update_enabled: true,
+            last_update_check_unix: 0,
         }
     }
 }
 
 impl Config {
-    #[must_use] 
+    #[must_use]
     pub fn get_config_path() -> PathBuf {
         if let Ok(exe) = std::env::current_exe() {
             let mut path = exe;
@@ -51,7 +55,7 @@ impl Config {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn load() -> Self {
         let path = Self::get_config_path();
         if let Ok(contents) = fs::read_to_string(&path) {

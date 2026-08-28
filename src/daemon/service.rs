@@ -54,14 +54,30 @@ fn service_execution_loop() -> Result<(), windows_service::Error> {
     })?;
 
     let config = Config::load();
-    let mut engine = SystemEngine::new(config);
+    let mut engine = SystemEngine::new(config.clone());
+    let mut tick_counter: u64 = 0;
 
     loop {
         if SHOULD_EXIT.load(Ordering::Acquire) {
             break;
         }
 
-        engine.tick();
+        tick_counter += 1;
+        if tick_counter.is_multiple_of(10) {
+            let fresh_config = Config::load();
+            engine.config = fresh_config;
+        }
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            engine.tick();
+        }));
+
+        if let Err(err) = result {
+            log::error!("[Service] Engine panic recovered: {:?}", err);
+            let fresh_config = Config::load();
+            engine = SystemEngine::new(fresh_config);
+        }
+
         thread::sleep(Duration::from_secs(1));
     }
 

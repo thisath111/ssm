@@ -14,7 +14,7 @@ impl Default for ServiceTuner {
 }
 
 impl ServiceTuner {
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self { is_paused: false }
     }

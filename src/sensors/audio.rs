@@ -1,7 +1,12 @@
 use std::collections::HashSet;
 use windows::core::Interface;
-use windows::Win32::Media::Audio::{IMMDeviceEnumerator, MMDeviceEnumerator, eRender, eCapture, IMMDeviceEnumerator_Impl, eConsole, IMMDeviceActivator_Impl, IPart_Impl, IAudioSessionManager2, IAudioSessionManager2_Impl, IAudioFormatEnumerator_Impl, IAudioSessionEnumerator_Impl, IMMDeviceCollection_Impl, IPartsList_Impl, IAudioSessionControl_Impl, AudioSessionStateActive, IAudioSessionControl2, IAudioSessionControl2_Impl};
-use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED, CoCreateInstance, CLSCTX_ALL, IAsyncManager_Impl, IRpcChannelBuffer3_Impl, CoUninitialize};
+use windows::Win32::Media::Audio::{
+    eCapture, eConsole, eRender, AudioSessionStateActive, IAudioSessionControl2,
+    IAudioSessionManager2, IMMDeviceEnumerator, MMDeviceEnumerator,
+};
+use windows::Win32::System::Com::{
+    CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_MULTITHREADED,
+};
 
 pub struct AudioSensor {
     com_initialized: bool,
@@ -14,14 +19,14 @@ impl Default for AudioSensor {
 }
 
 impl AudioSensor {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let result = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
         let com_initialized = result.is_ok() || result == windows::core::HRESULT(1);
         Self { com_initialized }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_active_audio_pids(&self) -> HashSet<u32> {
         let mut pids = HashSet::new();
         if !self.com_initialized {

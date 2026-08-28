@@ -1,6 +1,6 @@
 [package]
 name = "ssm"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 description = "High-performance Windows System Optimizer & Low-Latency Daemon — 100% Native Rust"
 license = "MIT"
@@ -22,6 +22,8 @@ log = "0.4"
 simplelog = "0.12.1"
 toml = "0.8.2"
 lazy_static = "1.4"
+ureq = { version = "2.10", default-features = false, features = ["tls"] }
+zip = { version = "2.1", default-features = false, features = ["deflate"] }
 
 [dependencies.windows]
 version = "0.62"

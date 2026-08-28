@@ -16,7 +16,7 @@ impl Default for PredictiveMemoryForecaster {
 }
 
 impl PredictiveMemoryForecaster {
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             history: [0.0; 10],
@@ -59,7 +59,7 @@ impl PredictiveMemoryForecaster {
     }
 
     /// Returns true if a memory crisis is imminent (predicted > 85% or rapid surge > 3% / sec).
-    #[must_use] 
+    #[must_use]
     pub fn should_preemptively_purge(&self, current_used_percent: f32) -> bool {
         (self.predicted_usage_in_5s >= 85.0 && current_used_percent >= 70.0)
             || (self.momentum > 3.0 && current_used_percent >= 65.0)

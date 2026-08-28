@@ -56,17 +56,19 @@ pub struct SystemEngine {
     // Zero-Allocation Buffers
     current_pids_buf: HashSet<u32>,
     expired_boosts_buf: Vec<(u32, u32)>,
+
+    _mmcss_guard: crate::core::mmcss::MmcssThreadGuard,
 }
 
 impl SystemEngine {
-    #[must_use] 
+    #[must_use]
     pub fn new(config: Config) -> Self {
         let mut sys = System::new_all();
         sys.refresh_all();
 
-        win32::enable_privilege("SeDebugPrivilege");
-        win32::enable_privilege("SeIncreaseBasePriorityPrivilege");
-        LargePageOptimizer::enable_large_pages();
+        let _ = win32::enable_privilege("SeDebugPrivilege");
+        let _ = win32::enable_privilege("SeIncreaseBasePriorityPrivilege");
+        let _ = LargePageOptimizer::enable_large_pages();
 
         // Initialize watchdog thread
         let heartbeat = FreezeGuardHeartbeat::new();
@@ -101,6 +103,7 @@ impl SystemEngine {
             hardware_profile,
             current_pids_buf: HashSet::with_capacity(512),
             expired_boosts_buf: Vec::with_capacity(32),
+            _mmcss_guard: crate::core::mmcss::MmcssThreadGuard::new("Pro Audio"),
         };
 
         for pid in engine.sys.processes().keys() {
@@ -112,6 +115,13 @@ impl SystemEngine {
         }
         if let Err(e) = RegistryTweaker::apply_performance_tweaks() {
             log::warn!("Failed to apply registry tweaks: {e}");
+        }
+        if let Err(e) =
+            crate::core::interrupt_affinity::InterruptAffinity::optimize_interrupt_routing(
+                engine.cpu_mgr.topology().p_core_mask,
+            )
+        {
+            log::warn!("Failed to optimize interrupt affinity: {e}");
         }
         if let Err(e) = DwmLatencyOptimizer::optimize_dwm_latency() {
             log::warn!("Failed to optimize DWM latency: {e}");
@@ -149,8 +159,7 @@ impl SystemEngine {
             .store(self.tick_count, Ordering::Relaxed);
 
         let foreground_hwnd = win32::get_foreground_hwnd();
-        let foreground_pid = foreground_hwnd
-            .map_or(0, win32::get_process_id_from_hwnd);
+        let foreground_pid = foreground_hwnd.map_or(0, win32::get_process_id_from_hwnd);
 
         self.sys
             .refresh_processes(sysinfo::ProcessesToUpdate::All, true);
@@ -226,7 +235,7 @@ impl SystemEngine {
         if self.config.enable_standby_purging
             && self.ai_forecaster.should_preemptively_purge(ram_used_p)
         {
-            self.ram_mgr.purge_standby_memory();
+            let _ = self.ram_mgr.purge_standby_memory();
         }
 
         if self.tick_count.is_multiple_of(3) {
@@ -295,7 +304,7 @@ impl SystemEngine {
                                 false,
                                 p_u32,
                             ) {
-                                crate::utils::nt_api::set_process_io_priority(
+                                let _ = crate::utils::nt_api::set_process_io_priority(
                                     handle,
                                     self.hardware_profile.max_background_io_prio,
                                 );
@@ -337,7 +346,7 @@ impl SystemEngine {
         if self.tick_count.is_multiple_of(30) {
             self.disk_sensor.update();
             if self.disk_sensor.usage_percent > self.config.disk_auto_clean_percent {
-                self.disk_sensor.clean_temp_files();
+                let _ = self.disk_sensor.clean_temp_files();
             }
 
             let standby_purge_threshold_mb = match self.hardware_profile.tier {
@@ -350,7 +359,20 @@ impl SystemEngine {
             if self.config.enable_standby_purging
                 && self.ram_mgr.sensor.available_mb < standby_purge_threshold_mb
             {
-                self.ram_mgr.purge_standby_memory();
+                let _ = self.ram_mgr.purge_standby_memory();
+            }
+        }
+
+        // Tier 5: Weekly Auto-Update Check (hourly local check)
+        if self.tick_count.is_multiple_of(3600) && self.config.auto_update_enabled {
+            if crate::updater::should_check(self.config.last_update_check_unix) {
+                // Spawn in background to avoid stalling the tick loop
+                let mut config_clone = self.config.clone();
+                std::thread::spawn(move || {
+                    let _ = crate::updater::run_update_check(&mut config_clone, false);
+                });
+                // Update local config immediately so we don't spawn multiple threads
+                self.config.last_update_check_unix = crate::updater::current_unix();
             }
         }
     }

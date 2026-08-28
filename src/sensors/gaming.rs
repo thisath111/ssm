@@ -12,35 +12,17 @@ impl Default for GamingSensor {
 }
 
 impl GamingSensor {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             known_game_signatures: vec![
-                "unreal",
-                "unity",
-                "csgo.exe",
-                "cs2.exe",
-                "valorant",
-                "dota2.exe",
-                "r5apex.exe",
-                "overwatch.exe",
-                "cyberpunk2077.exe",
-                "gta5.exe",
-                "fortnite",
-                "leagueoflegends",
-                "eldenring.exe",
-                "starfield.exe",
-                "bg3.exe",
-                "cod.exe",
-                "steamapps",
-                "pubg.exe",
-                "genshinimpact.exe",
+                "unreal", "unity", "engine", "shipping", "win64", "launcher",
             ],
         }
     }
 
     /// Determines if a full-screen game or graphics intensive app is active in foreground.
-    #[must_use] 
+    #[must_use]
     pub fn is_gaming_active(&self, sys: &System) -> bool {
         let foreground_hwnd = match win32::get_foreground_hwnd() {
             Some(h) => h,
@@ -72,7 +54,10 @@ impl GamingSensor {
                 return false;
             }
 
-            if is_fullscreen {
+            // Behavioral Heuristic: Is it running fullscreen and using heavy RAM/CPU?
+            // High memory and CPU + Fullscreen is highly likely a game or renderer
+            let mem_mb = process.memory() / (1024 * 1024);
+            if is_fullscreen && mem_mb > 500 {
                 return true;
             }
 

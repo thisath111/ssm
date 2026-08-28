@@ -6,13 +6,13 @@ pub struct LargePageOptimizer;
 
 impl LargePageOptimizer {
     /// Grants and verifies the `SeLockMemoryPrivilege` required for Large Page allocations.
-    #[must_use] 
+    #[must_use]
     pub fn enable_large_pages() -> bool {
         win32::enable_privilege("SeLockMemoryPrivilege")
     }
 
     /// Queries minimum large page size supported by the current processor (usually 2MB).
-    #[must_use] 
+    #[must_use]
     pub fn get_large_page_minimum() -> usize {
         unsafe { windows::Win32::System::Memory::GetLargePageMinimum() }
     }

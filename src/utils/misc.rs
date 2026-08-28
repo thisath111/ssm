@@ -1,14 +1,16 @@
 use std::mem;
 use windows::Win32::Foundation::*;
-use windows::Win32::System::Threading::*;
-use windows::Win32::Security::*;
-use windows::Win32::UI::WindowsAndMessaging::*;
-use windows::Win32::System::Power::*;
 use windows::Win32::Graphics::Gdi::*;
+use windows::Win32::Security::*;
+use windows::Win32::System::Power::*;
+use windows::Win32::System::Threading::*;
+use windows::Win32::UI::WindowsAndMessaging::*;
 
 #[inline]
 pub fn open_process(pid: u32, access: PROCESS_ACCESS_RIGHTS) -> Option<HANDLE> {
-    if pid == 0 { return None; }
+    if pid == 0 {
+        return None;
+    }
     unsafe { OpenProcess(access, false, pid).ok() }
 }
 
@@ -28,9 +30,11 @@ pub fn is_elevated() -> bool {
         let mut elevation = TOKEN_ELEVATION::default();
         let mut size = mem::size_of::<TOKEN_ELEVATION>() as u32;
         let res = GetTokenInformation(
-            token, TokenElevation,
+            token,
+            TokenElevation,
             Some(&mut elevation as *mut _ as *mut _),
-            size, &mut size,
+            size,
+            &mut size,
         );
         let _ = CloseHandle(token);
         res.is_ok() && elevation.TokenIsElevated != 0
@@ -41,7 +45,11 @@ pub fn is_elevated() -> bool {
 pub fn get_foreground_hwnd() -> Option<HWND> {
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd.is_invalid() || hwnd.0.is_null() { None } else { Some(hwnd) }
+        if hwnd.is_invalid() || hwnd.0.is_null() {
+            None
+        } else {
+            Some(hwnd)
+        }
     }
 }
 
@@ -73,16 +81,22 @@ pub fn is_on_battery() -> bool {
 pub fn is_fullscreen(hwnd: HWND) -> bool {
     unsafe {
         let mut win_rect = RECT::default();
-        if GetWindowRect(hwnd, &mut win_rect).is_err() { return false; }
+        if GetWindowRect(hwnd, &mut win_rect).is_err() {
+            return false;
+        }
 
         let hmon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-        if hmon.is_invalid() { return false; }
+        if hmon.is_invalid() {
+            return false;
+        }
 
         let mut info = MONITORINFO {
             cbSize: mem::size_of::<MONITORINFO>() as u32,
             ..Default::default()
         };
-        if !GetMonitorInfoW(hmon, &mut info).as_bool() { return false; }
+        if !GetMonitorInfoW(hmon, &mut info).as_bool() {
+            return false;
+        }
 
         let m = info.rcMonitor;
         win_rect.left <= m.left
@@ -96,7 +110,9 @@ pub fn is_fullscreen(hwnd: HWND) -> bool {
 #[inline]
 pub fn disable_priority_boost(pid: u32) {
     if let Some(h) = open_process(pid, PROCESS_SET_INFORMATION) {
-        unsafe { let _ = SetProcessPriorityBoost(h, true); }
+        unsafe {
+            let _ = SetProcessPriorityBoost(h, true);
+        }
         close_handle(h);
     }
 }
@@ -104,7 +120,9 @@ pub fn disable_priority_boost(pid: u32) {
 #[inline]
 pub fn enable_priority_boost(pid: u32) {
     if let Some(h) = open_process(pid, PROCESS_SET_INFORMATION) {
-        unsafe { let _ = SetProcessPriorityBoost(h, false); }
+        unsafe {
+            let _ = SetProcessPriorityBoost(h, false);
+        }
         close_handle(h);
     }
 }
@@ -113,8 +131,12 @@ pub fn enable_priority_boost(pid: u32) {
 pub fn set_process_io_priority(pid: u32, priority: u32) {
     if let Some(h) = open_process(pid, PROCESS_SET_INFORMATION) {
         unsafe {
-            let _ = SetProcessInformation(h, PROCESS_INFORMATION_CLASS(9),
-                &priority as *const _ as *const _, std::mem::size_of::<u32>() as u32);
+            let _ = SetProcessInformation(
+                h,
+                PROCESS_INFORMATION_CLASS(9),
+                &priority as *const _ as *const _,
+                std::mem::size_of::<u32>() as u32,
+            );
         }
         close_handle(h);
     }
@@ -124,8 +146,12 @@ pub fn set_process_io_priority(pid: u32, priority: u32) {
 pub fn set_process_memory_priority(pid: u32, priority: u32) {
     if let Some(h) = open_process(pid, PROCESS_SET_INFORMATION) {
         unsafe {
-            let _ = SetProcessInformation(h, ProcessMemoryPriority,
-                &priority as *const _ as *const _, std::mem::size_of::<u32>() as u32);
+            let _ = SetProcessInformation(
+                h,
+                ProcessMemoryPriority,
+                &priority as *const _ as *const _,
+                std::mem::size_of::<u32>() as u32,
+            );
         }
         close_handle(h);
     }

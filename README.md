@@ -55,9 +55,18 @@ ssm uninstall
 
 ### ⚡ Hardware-Adaptive Kernel Tuning
 - **Adaptive Timer Resolution** — Locks system timer via `NtSetTimerResolution` at 1.0ms / 0.75ms / 0.5ms based on detected hardware tier (Low / Mid / High-end)
+- **Interrupt Affinity Optimization** — Dynamically routes GPU and Network PCI interrupts directly to Performance Cores (`p_core_mask`), eliminating Core 0 DPC latency bottlenecks
+- **CPU C-State & Idle Suppression** — Suppresses deep CPU idle C-states during gaming/boost workloads via `PowerWriteACValueIndex` to eliminate micro-stutters
+- **MMCSS Thread Scheduling Boost** — Registers the engine thread with the Windows Multimedia Class Scheduler Service (`AvSetMmThreadCharacteristicsW`) for hard real-time priority
 - **Hardware Tier Detection** — Auto-detects CPU cores and total RAM at startup and tunes every threshold, trim level, and I/O policy to match your specific PC
 - **P-Core / E-Core Affinity** — Detects CPU topology and pins background processes to Efficiency Cores, reserving Performance Cores for the foreground
 - **App Launch Accelerator** — Boosts newly spawned processes to `HIGH_PRIORITY_CLASS` for 3 seconds for instant responsiveness
+
+### 🔄 Automatic Updates & Self-Healing Microkernel
+- **Zero-Downtime Supervised Engine** — Runs optimization routines inside a panic-isolated supervisor loop (`catch_unwind`) with automatic zero-downtime recovery
+- **Configuration Hot-Reload** — Daemon dynamically applies updated configuration settings without requiring a service restart
+- **Weekly Auto-Update Check** — Automatically checks GitHub releases weekly in the background and applies in-place atomic updates (`self_replace`)
+- **CLI Update Management** — Manually check, install, enable, or disable automatic background updates with simple commands
 
 ### 🧠 Zero-Hardcode AI Engine
 - **Behavioral Process Intent Classifier** — Identifies Gaming, Creative Workstation, Developer, or Typing Tool workloads purely from behavioral signals (RAM usage, CPU %, thread count, window ownership) — no process name lists
@@ -66,6 +75,9 @@ ssm uninstall
 - **Workload State Machine** — Transitions between `UltraGaming`, `CreatorBoost`, `StandardInteractive`, and `PowerSaverIdle` with hardware-adaptive emergency thresholds
 
 ### 🚀 Deep Windows Subsystem Optimization
+- **Global Timer Resolution Request (Win 11 Fix)** — Enforces global 0.5ms timer resolution across all processes via kernel Session Manager
+- **Win32 Priority Separation (0x26)** — Enhances foreground thread responsiveness by prioritizing interactive foreground quantum
+- **USB Latency Boost** — Disables USB Selective Suspend to minimize mouse and keyboard input lag
 - **DWM DirectFlip Zero-Lag** — Strips Desktop Window Manager animation delays and routes frames directly to GPU overlay scan-out
 - **Kernel Large Pages (2MB HugePages)** — Minimizes CPU TLB cache misses for compilers and game engines
 - **GPU & Network MSI-X Interrupts** — Switches adapters to Message Signaled Interrupts via PCI Registry, eliminating DPC latency spikes
@@ -84,14 +96,18 @@ ssm uninstall
 ## CLI Reference
 
 ```powershell
-ssm stats           # Live hardware telemetry, AI app intent & kernel stats
-ssm boost           # One-click performance boost (Timer, Large Pages, DWM, GPU, NVMe)
-ssm clean           # Purge Windows Standby RAM + clean temporary files
-ssm tune            # Apply low-latency registry tweaks (MSI-X, TCP NoDelay, Fast Shutdown)
-ssm daemon          # Run the optimization daemon in foreground (console mode)
-ssm service install # Register as a Windows Service with boot autostart
-ssm service uninstall # Unregister the Windows Service
-ssm uninstall       # Completely remove ssm (reverts tweaks, removes service & PATH)
+ssm stats              # Live hardware telemetry, AI app intent & kernel stats
+ssm boost              # One-click performance boost (Timer, Large Pages, DWM, GPU, NVMe)
+ssm clean              # Purge Windows Standby RAM + clean temporary files
+ssm tune               # Apply low-latency registry tweaks (MSI-X, TCP NoDelay, Fast Shutdown)
+ssm update             # Check and install the latest ssm update automatically
+ssm update --check     # Check if a new version is available without installing
+ssm update --enable    # Enable automatic weekly background updates
+ssm update --disable   # Disable automatic weekly background updates
+ssm daemon             # Run the optimization daemon in foreground (console mode)
+ssm service install    # Register as a Windows Service with boot autostart
+ssm service uninstall  # Unregister the Windows Service
+ssm uninstall          # Completely remove ssm (reverts tweaks, removes service & PATH)
 ```
 
 ---

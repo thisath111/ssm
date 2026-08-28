@@ -1,7 +1,9 @@
 use crate::sensors::cpu_topology::CpuTopology;
 use windows::core::GUID;
 use windows::Win32::Foundation::CloseHandle;
-use windows::Win32::System::Power::{PowerGetActiveScheme, PowerSetActiveScheme, PowerWriteACValueIndex};
+use windows::Win32::System::Power::{
+    PowerGetActiveScheme, PowerSetActiveScheme, PowerWriteACValueIndex,
+};
 use windows::Win32::System::Threading::{
     GetPriorityClass, OpenProcess, SetPriorityClass, SetProcessAffinityMask, HIGH_PRIORITY_CLASS,
     IDLE_PRIORITY_CLASS, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_INFORMATION,
@@ -11,35 +13,7 @@ extern "system" {
     fn LocalFree(hmem: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
 }
 
-const GUID_PROCESSOR_SETTINGS_SUBGROUP: GUID = GUID {
-    data1: 0x54533251,
-    data2: 0x82be,
-    data3: 0x4824,
-    data4: [0x96, 0xc1, 0x47, 0xb6, 0x0b, 0x74, 0x0d, 0x00],
-};
-
-const GUID_PROCESSOR_CORE_PARKING_MIN: GUID = GUID {
-    data1: 0x0cc5b647,
-    data2: 0xc1df,
-    data3: 0x4637,
-    data4: [0x89, 0x1a, 0xde, 0xc3, 0x5c, 0x31, 0x85, 0x83],
-};
-
-// Ultimate Performance Power Plan GUID
-const GUID_ULTIMATE_PERFORMANCE: GUID = GUID {
-    data1: 0xe9a42b02,
-    data2: 0xd5df,
-    data3: 0x448d,
-    data4: [0xaa, 0x00, 0x03, 0xf1, 0x47, 0x49, 0xeb, 0x61],
-};
-
-// High Performance Power Plan GUID
-const GUID_HIGH_PERFORMANCE: GUID = GUID {
-    data1: 0x8c5e7fda,
-    data2: 0xe8bf,
-    data3: 0x4a96,
-    data4: [0x9a, 0x85, 0x27, 0x0e, 0x06, 0x5d, 0x01, 0x1e],
-};
+use crate::utils::power_constants::*;
 
 pub struct CpuManager {
     topology: CpuTopology,
@@ -54,7 +28,7 @@ impl Default for CpuManager {
 }
 
 impl CpuManager {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             topology: CpuTopology::detect(),
@@ -63,7 +37,7 @@ impl CpuManager {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn topology(&self) -> &CpuTopology {
         &self.topology
     }
@@ -95,7 +69,7 @@ impl CpuManager {
     }
 
     /// Temporarily boosts a process to High Priority, returning its original priority.
-    #[must_use] 
+    #[must_use]
     pub fn boost_process_priority(&self, pid: u32) -> Option<u32> {
         if pid <= 4 {
             return None;
@@ -170,6 +144,14 @@ impl CpuManager {
                     Some(&GUID_PROCESSOR_SETTINGS_SUBGROUP),
                     Some(&GUID_PROCESSOR_CORE_PARKING_MIN),
                     100,
+                );
+                // Suppress C-States (Idle Disable) to eliminate micro-stutters
+                let _ = PowerWriteACValueIndex(
+                    None,
+                    &raw const active_scheme,
+                    Some(&GUID_PROCESSOR_SETTINGS_SUBGROUP),
+                    Some(&GUID_PROCESSOR_IDLE_DISABLE),
+                    1,
                 );
                 let _ = PowerSetActiveScheme(None, Some(&raw const active_scheme));
             }

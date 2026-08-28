@@ -20,7 +20,7 @@ pub struct CpuTopology {
 }
 
 impl CpuTopology {
-    #[must_use] 
+    #[must_use]
     pub fn detect() -> Self {
         let mut total_logical = num_cpus();
         if total_logical == 0 {
@@ -37,7 +37,8 @@ impl CpuTopology {
 
         unsafe {
             let mut buf_size: u32 = 0;
-            let _ = GetLogicalProcessorInformationEx(RelationProcessorCore, None, &raw mut buf_size);
+            let _ =
+                GetLogicalProcessorInformationEx(RelationProcessorCore, None, &raw mut buf_size);
 
             if buf_size > 0 {
                 let mut buffer: Vec<u8> = vec![0; buf_size as usize];

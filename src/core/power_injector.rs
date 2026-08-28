@@ -11,29 +11,7 @@ extern "system" {
     fn LocalFree(hmem: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
 }
 
-// GUID for Processor settings subgroup
-const GUID_PROCESSOR_SETTINGS_SUBGROUP: GUID = GUID {
-    data1: 0x54533251,
-    data2: 0x82be,
-    data3: 0x4824,
-    data4: [0x96, 0xc1, 0x47, 0xb6, 0x0b, 0x74, 0x0d, 0x00],
-};
-
-// GUID for core parking min cores (0-100%)
-const GUID_PROCESSOR_CORE_PARKING_MIN: GUID = GUID {
-    data1: 0x0cc5b647,
-    data2: 0xc1df,
-    data3: 0x4637,
-    data4: [0x89, 0x1a, 0xde, 0xc3, 0x5c, 0x31, 0x85, 0x83],
-};
-
-// GUID for core parking max cores (0-100%)
-const GUID_PROCESSOR_CORE_PARKING_MAX: GUID = GUID {
-    data1: 0xea06c951,
-    data2: 0x1d8c,
-    data3: 0x41a6,
-    data4: [0xa5, 0x77, 0xc0, 0x59, 0xfa, 0x33, 0xd7, 0xd8],
-};
+use crate::utils::power_constants::*;
 
 pub struct PowerInjector {
     original_min_cores: Option<u32>,

@@ -18,7 +18,7 @@ impl Default for GpuManager {
 }
 
 impl GpuManager {
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             is_boosted: false,

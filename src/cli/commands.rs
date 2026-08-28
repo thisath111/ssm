@@ -54,7 +54,10 @@ pub fn handle_boost() {
         TerminalUi::print_success("NVMe SSD Queue Depth & NTFS MFT Cache Acceleration Active");
     }
 
-    if matches!(crate::core::dwm::DwmLatencyOptimizer::optimize_dwm_latency(), Ok(())) {
+    if matches!(
+        crate::core::dwm::DwmLatencyOptimizer::optimize_dwm_latency(),
+        Ok(())
+    ) {
         TerminalUi::print_success(
             "Desktop Window Manager (DWM) DirectFlip Zero-Lag Presentation Active",
         );
@@ -129,9 +132,7 @@ pub fn handle_stats() {
         let max_ms = max as f32 / 10000.0;
         TerminalUi::print_key_value(
             "Timer Resolution",
-            &format!(
-                "{cur_ms:.2} ms (Min: {max_ms:.2} ms, Max: {min_ms:.2} ms)"
-            ),
+            &format!("{cur_ms:.2} ms (Min: {max_ms:.2} ms, Max: {min_ms:.2} ms)"),
         );
     }
 
@@ -208,9 +209,28 @@ pub fn handle_daemon() {
 
         // Fallback to standalone loop if not launched by Windows SCM
         let config = Config::load();
-        let mut engine = crate::core::engine::SystemEngine::new(config);
+        let mut engine = crate::core::engine::SystemEngine::new(config.clone());
+        let mut tick_counter: u64 = 0;
         loop {
-            engine.tick();
+            tick_counter += 1;
+            if tick_counter.is_multiple_of(10) {
+                let fresh_config = Config::load();
+                engine.config = fresh_config;
+            }
+
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                engine.tick();
+            }));
+
+            if let Err(err) = result {
+                log::error!(
+                    "[Daemon] Standalone engine recovered from unexpected panic: {:?}",
+                    err
+                );
+                let fresh_config = Config::load();
+                engine = crate::core::engine::SystemEngine::new(fresh_config);
+            }
+
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
     }
@@ -279,8 +299,10 @@ pub fn handle_service(action: &str) {
             TerminalUi::print_success("Boot autostart registry key removed.");
 
             let exe_path = std::env::current_exe().unwrap_or_default();
-            let install_dir = exe_path
-                .parent().map_or_else(|| "C:\\ssm".to_string(), |p| p.to_string_lossy().into_owned());
+            let install_dir = exe_path.parent().map_or_else(
+                || "C:\\ssm".to_string(),
+                |p| p.to_string_lossy().into_owned(),
+            );
 
             use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
             use winreg::RegKey;
@@ -294,12 +316,16 @@ pub fn handle_service(action: &str) {
                         .filter(|&p| !p.trim().eq_ignore_ascii_case(&install_dir))
                         .collect();
                     let _ = hkcu.set_value("Path", &filtered.join(";"));
-                    TerminalUi::print_success(&format!("Removed {install_dir} from Windows User PATH."));
+                    TerminalUi::print_success(&format!(
+                        "Removed {install_dir} from Windows User PATH."
+                    ));
                 }
             }
 
             TerminalUi::print_header("Uninstall Complete");
-            TerminalUi::print_info(&format!("{install_dir} directory will be deleted in 2 seconds. Goodbye!"));
+            TerminalUi::print_info(&format!(
+                "{install_dir} directory will be deleted in 2 seconds. Goodbye!"
+            ));
 
             let _ = std::process::Command::new("cmd")
                 .args([
@@ -312,6 +338,68 @@ pub fn handle_service(action: &str) {
             TerminalUi::print_error(
                 "Unknown action. Usage: ssm service install | ssm service uninstall",
             );
+        }
+    }
+}
+
+pub fn handle_update(check: bool, enable: bool, disable: bool) {
+    TerminalUi::print_header("Smart System Manager Update Utility");
+    let mut config = Config::load();
+
+    if enable {
+        config.auto_update_enabled = true;
+        let _ = config.save();
+        TerminalUi::print_success("Automatic background updates are now ENABLED.");
+        return;
+    }
+
+    if disable {
+        config.auto_update_enabled = false;
+        let _ = config.save();
+        TerminalUi::print_success("Automatic background updates are now DISABLED.");
+        return;
+    }
+
+    if check {
+        TerminalUi::print_info("Checking for updates...");
+        match crate::updater::check_for_update() {
+            Ok(Some((version, _url))) => {
+                TerminalUi::print_success(&format!("A new version ({version}) is available!"));
+                TerminalUi::print_info("Run 'ssm update' to install it.");
+            }
+            Ok(None) => {
+                TerminalUi::print_success("You are already on the latest version.");
+            }
+            Err(e) => {
+                TerminalUi::print_error(&format!("Failed to check for updates: {e}"));
+            }
+        }
+        return;
+    }
+
+    // Default action: run full update
+    TerminalUi::print_info("Checking for updates...");
+    match crate::updater::run_update_check(&mut config, true) {
+        crate::updater::UpdateStatus::UpToDate => {
+            TerminalUi::print_success("You are already on the latest version.");
+        }
+        crate::updater::UpdateStatus::Updated(version) => {
+            TerminalUi::print_success(&format!("Successfully updated to {version}!"));
+            TerminalUi::print_info("If the background service is running, it will automatically restart and apply the new version.");
+
+            // Attempt to restart service if it is installed
+            TerminalUi::print_info("Attempting to restart Windows Service...");
+            let _ = std::process::Command::new("sc")
+                .args(["stop", "SmartSystemManager"])
+                .output();
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            let _ = std::process::Command::new("sc")
+                .args(["start", "SmartSystemManager"])
+                .output();
+            TerminalUi::print_success("Done.");
+        }
+        crate::updater::UpdateStatus::CheckFailed(e) => {
+            TerminalUi::print_error(&format!("Update failed: {e}"));
         }
     }
 }

@@ -25,7 +25,7 @@ impl Default for RamManager {
 }
 
 impl RamManager {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             sensor: RamPressureSensor::new(),
@@ -35,7 +35,7 @@ impl RamManager {
     }
 
     /// Purges Standby List RAM without dumping active app memory to pagefile.
-    #[must_use] 
+    #[must_use]
     pub fn purge_standby_memory(&self) -> bool {
         nt_api::purge_standby_list()
     }
@@ -71,18 +71,17 @@ impl RamManager {
                 continue;
             }
 
-            if process.memory() > min_bytes
-                && self.trim_single_process(pid_u32) {
-                    trimmed_count += 1;
-                    self.trimmed_pids.insert(pid_u32);
-                }
+            if process.memory() > min_bytes && self.trim_single_process(pid_u32) {
+                trimmed_count += 1;
+                self.trimmed_pids.insert(pid_u32);
+            }
         }
 
         trimmed_count
     }
 
     /// Safe single-process working set trim.
-    #[must_use] 
+    #[must_use]
     pub fn trim_single_process(&self, pid: u32) -> bool {
         unsafe {
             let access = PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION;

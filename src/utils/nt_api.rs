@@ -39,7 +39,7 @@ pub fn set_timer_resolution(desired_100ns: u32) -> Result<u32, i32> {
 }
 
 /// Queries current timer resolution ranges (min, max, current) in 100ns units.
-#[must_use] 
+#[must_use]
 pub fn query_timer_resolution() -> Option<(u32, u32, u32)> {
     let mut min: u32 = 0;
     let mut max: u32 = 0;
@@ -53,7 +53,7 @@ pub fn query_timer_resolution() -> Option<(u32, u32, u32)> {
 }
 
 /// Sets Process I/O Priority (0 = Very Low, 1 = Low, 2 = Normal, 3 = High).
-#[must_use] 
+#[must_use]
 pub fn set_process_io_priority(handle: HANDLE, priority: u32) -> bool {
     let mut io_prio = priority;
     let status = unsafe {
@@ -68,7 +68,7 @@ pub fn set_process_io_priority(handle: HANDLE, priority: u32) -> bool {
 }
 
 /// Sets Process Memory Page Priority (1 = Lowest, 5 = Normal/High).
-#[must_use] 
+#[must_use]
 pub fn set_process_page_priority(handle: HANDLE, priority: u32) -> bool {
     let mut page_prio = priority;
     let status = unsafe {
@@ -83,7 +83,7 @@ pub fn set_process_page_priority(handle: HANDLE, priority: u32) -> bool {
 }
 
 /// Safely purges Windows Standby Memory List.
-#[must_use] 
+#[must_use]
 pub fn purge_standby_list() -> bool {
     let mut command: u32 = PURGE_STANDBY_LIST;
     let status = unsafe {
@@ -97,14 +97,14 @@ pub fn purge_standby_list() -> bool {
 }
 
 /// Suspends process execution using `NtSuspendProcess`.
-#[must_use] 
+#[must_use]
 pub fn suspend_process_nt(handle: HANDLE) -> bool {
     let status = unsafe { NtSuspendProcess(handle.0.cast()) };
     status >= 0
 }
 
 /// Resumes process execution using `NtResumeProcess`.
-#[must_use] 
+#[must_use]
 pub fn resume_process_nt(handle: HANDLE) -> bool {
     let status = unsafe { NtResumeProcess(handle.0.cast()) };
     status >= 0

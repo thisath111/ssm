@@ -1,7 +1,9 @@
 // nt_bridge.rs
 // BUG FIX: Fixed OOB read vulnerability and incomplete buffer parsing.
 
-use ntapi::ntexapi::{NtQuerySystemInformation, SystemProcessInformation, SYSTEM_PROCESS_INFORMATION};
+use ntapi::ntexapi::{
+    NtQuerySystemInformation, SystemProcessInformation, SYSTEM_PROCESS_INFORMATION,
+};
 
 pub struct ProcessInfo {
     pub pid: u32,
@@ -30,11 +32,13 @@ pub fn scan_processes_nt() -> Vec<ProcessInfo> {
             )
         };
 
-        if status == 0 { // STATUS_SUCCESS
+        if status == 0 {
+            // STATUS_SUCCESS
             success = true;
             break;
         }
-        if status == 0xC0000004u32 as i32 { // STATUS_INFO_LENGTH_MISMATCH
+        if status == 0xC0000004u32 as i32 {
+            // STATUS_INFO_LENGTH_MISMATCH
             buf_size = actual + 16384;
         } else {
             return results;
@@ -56,7 +60,7 @@ pub fn scan_processes_nt() -> Vec<ProcessInfo> {
         }
 
         let spi = unsafe { &*(ptr as *const SYSTEM_PROCESS_INFORMATION) };
-        
+
         let pid = spi.UniqueProcessId as usize as u32;
         let thread_count = spi.NumberOfThreads;
         let handle_count = spi.HandleCount;
@@ -74,7 +78,7 @@ pub fn scan_processes_nt() -> Vec<ProcessInfo> {
         if spi.NextEntryOffset == 0 {
             break;
         }
-        
+
         // BUG FIX: Validate NextEntryOffset before advancing
         let next_offset = spi.NextEntryOffset as usize;
         if next_offset < std::mem::size_of::<SYSTEM_PROCESS_INFORMATION>() {

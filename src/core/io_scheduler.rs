@@ -6,7 +6,7 @@ pub struct IoScheduler;
 
 impl IoScheduler {
     /// Sets process I/O priority (0 = Very Low, 1 = Low, 2 = Normal, 3 = High).
-    #[must_use] 
+    #[must_use]
     pub fn set_io_priority(pid: u32, priority: u32) -> bool {
         if pid <= 4 {
             return false;
@@ -22,7 +22,7 @@ impl IoScheduler {
     }
 
     /// Sets process memory page priority (1 = Lowest, 5 = Normal/High).
-    #[must_use] 
+    #[must_use]
     pub fn set_page_priority(pid: u32, priority: u32) -> bool {
         if pid <= 4 {
             return false;
@@ -39,19 +39,19 @@ impl IoScheduler {
 
     /// Sets background CPU hog to lowest I/O priority (0) and page priority (1).
     pub fn deprioritize_background_process(pid: u32) {
-        Self::set_io_priority(pid, 0);
-        Self::set_page_priority(pid, 1);
+        let _ = Self::set_io_priority(pid, 0);
+        let _ = Self::set_page_priority(pid, 1);
     }
 
     /// Boosts foreground application to high I/O priority (3) and page priority (5).
     pub fn prioritize_foreground_process(pid: u32) {
-        Self::set_io_priority(pid, 3);
-        Self::set_page_priority(pid, 5);
+        let _ = Self::set_io_priority(pid, 3);
+        let _ = Self::set_page_priority(pid, 5);
     }
 
     /// Restores a backgrounded process to normal I/O priority (2) and page priority (5).
     pub fn restore_process_io(pid: u32) {
-        Self::set_io_priority(pid, 2);
-        Self::set_page_priority(pid, 5);
+        let _ = Self::set_io_priority(pid, 2);
+        let _ = Self::set_page_priority(pid, 5);
     }
 }

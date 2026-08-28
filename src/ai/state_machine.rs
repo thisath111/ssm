@@ -10,7 +10,7 @@ pub enum SystemWorkloadState {
 }
 
 impl SystemWorkloadState {
-    #[must_use] 
+    #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::PowerSaverIdle => "Power-Efficient Idle",
@@ -40,7 +40,7 @@ impl Default for WorkloadStateMachine {
 }
 
 impl WorkloadStateMachine {
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             current_state: SystemWorkloadState::StandardInteractive,

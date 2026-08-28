@@ -25,7 +25,7 @@ pub struct HardwareProfile {
 
 impl HardwareProfile {
     /// Auto-detects hardware topology from the operating system.
-    #[must_use] 
+    #[must_use]
     pub fn auto_detect(sys: &System) -> Self {
         let logical_cores = sys.cpus().len().max(1);
         let total_ram_mb = sys.total_memory() / (1024 * 1024);
@@ -73,13 +73,13 @@ impl HardwareProfile {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_low_end(&self) -> bool {
         self.tier == HardwareTier::LowEndBudget
     }
 
     /// For low-end PCs, high-precision timer (0.5ms) adds DPC overhead — use 1ms instead.
-    #[must_use] 
+    #[must_use]
     pub const fn optimal_timer_resolution_100ns(&self) -> u32 {
         match self.tier {
             HardwareTier::LowEndBudget => 10_000,    // 1.0ms — low overhead
@@ -89,7 +89,7 @@ impl HardwareProfile {
     }
 
     /// Emergency RAM trigger threshold — lower for PCs with less headroom.
-    #[must_use] 
+    #[must_use]
     pub const fn emergency_ram_threshold(&self) -> f32 {
         match self.tier {
             HardwareTier::LowEndBudget => 80.0, // trigger earlier on scarce RAM
@@ -98,7 +98,7 @@ impl HardwareProfile {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn tier_name(&self) -> &'static str {
         match self.tier {
             HardwareTier::LowEndBudget => "Budget / Legacy PC (Ultra-Smooth Smoothness Mode)",

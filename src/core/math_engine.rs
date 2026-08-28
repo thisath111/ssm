@@ -10,7 +10,7 @@ pub struct PidController {
 }
 
 impl PidController {
-    #[must_use] 
+    #[must_use]
     pub const fn new(kp: f32, ki: f32, kd: f32, output_min: f32, output_max: f32) -> Self {
         Self {
             kp,
@@ -30,11 +30,15 @@ impl PidController {
         }
 
         let error = setpoint - measured;
-        self.integral = error.mul_add(dt, self.integral).clamp(self.output_min, self.output_max);
+        self.integral = error
+            .mul_add(dt, self.integral)
+            .clamp(self.output_min, self.output_max);
         let derivative = (error - self.prev_error) / dt;
         self.prev_error = error;
 
-        let output = self.kd.mul_add(derivative, self.kp.mul_add(error, self.ki * self.integral));
+        let output = self
+            .kd
+            .mul_add(derivative, self.kp.mul_add(error, self.ki * self.integral));
         output.clamp(self.output_min, self.output_max)
     }
 }
@@ -49,7 +53,7 @@ pub struct KalmanPredictor {
 }
 
 impl KalmanPredictor {
-    #[must_use] 
+    #[must_use]
     pub const fn new(process_noise: f32, measurement_noise: f32) -> Self {
         Self {
             q: process_noise,
@@ -73,7 +77,7 @@ impl KalmanPredictor {
         self.x
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn get_estimate(&self) -> f32 {
         self.x
     }
@@ -94,7 +98,7 @@ impl Default for PageFaultDerivator {
 }
 
 impl PageFaultDerivator {
-    #[must_use] 
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             prev_faults: 0,

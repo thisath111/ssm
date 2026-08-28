@@ -1,12 +1,22 @@
 use std::mem;
-use windows::Win32::Foundation::{HANDLE, CloseHandle, LUID, HWND, RECT, WPARAM, LPARAM};
-use windows::Win32::Graphics::Gdi::{MonitorFromWindow, MONITOR_DEFAULTTONEAREST, MONITORINFO, GetMonitorInfoW};
-use windows::Win32::Security::{TOKEN_QUERY, TOKEN_ELEVATION, GetTokenInformation, TokenElevation, TOKEN_ADJUST_PRIVILEGES, TOKEN_PRIVILEGES, LUID_AND_ATTRIBUTES, SE_PRIVILEGE_ENABLED, AdjustTokenPrivileges};
-use windows::Win32::System::Threading::{OpenProcessToken, GetCurrentProcess, PROCESS_ACCESS_RIGHTS, OpenProcess};
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId, IsHungAppWindow, GetWindowRect, SendMessageTimeoutW, HWND_BROADCAST, WM_SETTINGCHANGE, SMTO_ABORTIFHUNG};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, LUID, RECT, WPARAM};
+use windows::Win32::Graphics::Gdi::{
+    GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+};
+use windows::Win32::Security::{
+    AdjustTokenPrivileges, GetTokenInformation, TokenElevation, LUID_AND_ATTRIBUTES,
+    SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES, TOKEN_ELEVATION, TOKEN_PRIVILEGES, TOKEN_QUERY,
+};
+use windows::Win32::System::Threading::{
+    GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_ACCESS_RIGHTS,
+};
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId, IsHungAppWindow,
+    SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE,
+};
 
 /// Checks if current process is running with Administrator privileges.
-#[must_use] 
+#[must_use]
 pub fn is_elevated() -> bool {
     unsafe {
         let mut token = HANDLE::default();
@@ -28,7 +38,7 @@ pub fn is_elevated() -> bool {
 }
 
 /// Enables specified privilege (e.g., `SeDebugPrivilege`, `SeIncreaseBasePriorityPrivilege`) for process token.
-#[must_use] 
+#[must_use]
 pub fn enable_privilege(privilege_name: &str) -> bool {
     unsafe {
         let mut token = HANDLE::default();
@@ -73,7 +83,7 @@ pub fn enable_privilege(privilege_name: &str) -> bool {
 }
 
 /// Safely opens a handle to a process with requested access rights.
-#[must_use] 
+#[must_use]
 pub fn open_process(pid: u32, access: PROCESS_ACCESS_RIGHTS) -> Option<HANDLE> {
     if pid <= 4 {
         return None;
@@ -89,7 +99,7 @@ pub fn close_handle(h: HANDLE) {
 }
 
 /// Returns HWND of current foreground active window.
-#[must_use] 
+#[must_use]
 pub fn get_foreground_hwnd() -> Option<HWND> {
     unsafe {
         let hwnd = GetForegroundWindow();
@@ -102,7 +112,7 @@ pub fn get_foreground_hwnd() -> Option<HWND> {
 }
 
 /// Returns process ID for given HWND.
-#[must_use] 
+#[must_use]
 pub fn get_process_id_from_hwnd(hwnd: HWND) -> u32 {
     unsafe {
         let mut pid: u32 = 0;
@@ -112,13 +122,13 @@ pub fn get_process_id_from_hwnd(hwnd: HWND) -> u32 {
 }
 
 /// Checks if window is currently unresponsive / hung.
-#[must_use] 
+#[must_use]
 pub fn is_window_hung(hwnd: HWND) -> bool {
     unsafe { IsHungAppWindow(hwnd).as_bool() }
 }
 
 /// Checks if window occupies full monitor workspace (game/video player).
-#[must_use] 
+#[must_use]
 pub fn is_fullscreen(hwnd: HWND) -> bool {
     unsafe {
         let mut win_rect = RECT::default();
