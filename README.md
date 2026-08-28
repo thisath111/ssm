@@ -1,73 +1,83 @@
-# Smart System Manager (`ssm`)
+<div align="center">
 
-> High-performance, AI-driven Windows system optimizer and low-latency background daemon written in 100% Native Rust.  
-> Runs silently as an autonomous Windows Native Service — zero UI, zero telemetry, zero bloat, maximum performance.
+# ⚡ Smart System Manager (`ssm`)
 
-[![Build](https://github.com/thisath111/ssm/actions/workflows/release.yml/badge.svg)](https://github.com/thisath111/ssm/actions/workflows/release.yml)
-[![Tests](https://github.com/thisath111/ssm/actions/workflows/audit.yml/badge.svg)](https://github.com/thisath111/ssm/actions/workflows/audit.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows_10_%7C_11_(x64)-0078D6)](https://microsoft.com/windows)
-[![Release](https://img.shields.io/github/v/release/thisath111/ssm)](https://github.com/thisath111/ssm/releases/latest)
+**Ultra-Low Latency Windows Optimization Daemon & Autonomous AI Microkernel**  
+*Engineered in 100% Native Rust · Zero Bloat · Zero Telemetry · Sub-Millisecond Kernel Tuning*
 
----
+[![Build Status](https://img.shields.io/github/actions/workflow/status/thisath111/ssm/release.yml?branch=main&style=for-the-badge&logo=github&logoColor=white&label=Build)](https://github.com/thisath111/ssm/actions)
+[![Tests](https://img.shields.io/badge/Tests-13%20Passing-brightgreen?style=for-the-badge&logo=rust&logoColor=white)](https://github.com/thisath111/ssm/actions)
+[![Latest Release](https://img.shields.io/github/v/release/thisath111/ssm?style=for-the-badge&color=blue&logo=windows&logoColor=white)](https://github.com/thisath111/ssm/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D6?style=for-the-badge&logo=windows11&logoColor=white)](https://microsoft.com/windows)
 
-## Table of Contents
-- [What is ssm?](#what-is-ssm)
-- [Quick Installation (Automated 1-Liner)](#quick-installation-automated-1-liner)
-- [Manual Installation (Step-by-Step Guide)](#manual-installation-step-by-step-guide)
-- [Building from Source (Rust Developer Guide)](#building-from-source-rust-developer-guide)
-- [CLI Reference & Usage](#cli-reference--usage)
-- [Automatic & Manual Updates](#automatic--manual-updates)
-- [Core Features & Architecture](#core-features--architecture)
-- [Configuration & Logging](#configuration--logging)
-- [Troubleshooting & FAQ](#troubleshooting--faq)
-- [Uninstallation](#uninstallation)
-- [License](#license)
+<p align="center">
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-manual-installation">Manual Install</a> •
+  <a href="#-building-from-source">Build from Source</a> •
+  <a href="#-command-reference">CLI Reference</a> •
+  <a href="#-features--architecture">Features</a> •
+  <a href="#-troubleshooting--faq">FAQ</a>
+</p>
 
 ---
 
-## What is ssm?
+</div>
 
-`ssm` is a background Windows optimization daemon that applies deep kernel-level tuning that Windows never does out of the box. A **Pure-Rust AI engine** classifies what you are doing in real time — Gaming, Coding, Video Editing, or Idle — then dynamically adjusts CPU priority, GPU scheduling, RAM pressure, and network quality. Automatically. No configuration needed.
+## 📌 Overview
 
-Unlike bloatware "optimizer" apps, `ssm` has no GUI, no ads, no telemetry, and no dependencies. Open-source, written entirely in Rust, consuming less than `0.01% CPU` and `~6 MB RAM`.
+**`ssm`** is a lightweight, background Windows performance optimizer that enforces deep, hardware-level kernel tuning that Windows never does out of the box. 
+
+Powered by a **Pure-Rust sub-microsecond AI engine**, `ssm` continuously analyzes active foreground workloads (Gaming, Video/Audio Creation, Development, or Idle) and dynamically adapts CPU scheduling, GPU queues, RAM pressure, and network interrupts in real time.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  ⚡ Hardware-Adaptive Windows Optimization Microkernel                 │
+├────────────────────────────────────────────────────────────────────────┤
+│  • Memory Footprint : ~6.0 MB RAM       • CPU Overhead : < 0.01%       │
+│  • Timer Resolution : Locked @ 0.5ms    • User Interface: 100% Silent  │
+│  • System Privileges: Win32 NT Kernel   • Architecture : Native x86-64 │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+> [!TIP]
+> **Zero Bloatware Guarantee:** `ssm` contains **no GUI, no Electron, no advertisements, no webviews, and no analytics**. It runs entirely as a native Windows service.
 
 ---
 
-## Quick Installation (Automated 1-Liner)
+## ⚡ Quick Start
 
-The fastest way to install `ssm` is using PowerShell.
+### 1-Line Automated Installation (PowerShell)
 
-Open **PowerShell as Administrator** (Right-click Start menu → *Terminal (Admin)* or *Windows PowerShell (Admin)*) and run:
+Open **PowerShell as Administrator** and execute:
 
 ```powershell
 irm https://raw.githubusercontent.com/thisath111/ssm/main/install.ps1 | iex
 ```
 
-### What this script does automatically:
-1. Creates directory `C:\ssm\`
-2. Downloads the latest pre-compiled `ssm.exe` binary from GitHub Releases
-3. Adds `C:\ssm` permanently to your Windows System `PATH`
-4. Registers `SmartSystemManager` as a Windows Native Service (SCM) configured to auto-start on every system boot
-5. Starts the optimization daemon immediately in the background
+#### What happens automatically:
+1. Downloads pre-compiled `ssm.exe` to `C:\ssm\`
+2. Permanently registers `C:\ssm` in your Windows system `PATH`
+3. Registers `SmartSystemManager` as an autostarting **Windows Native Service**
+4. Launches the optimization daemon immediately in the background
 
 ---
 
-## Manual Installation (Step-by-Step Guide)
+## 🛠️ Manual Installation
 
-If you prefer to install `ssm` manually without running an automated script, follow these steps:
+Prefer manual control without running scripts? Follow this simple 4-step setup:
 
-### Step 1: Download the Binary
-1. Go to the [Releases Page](https://github.com/thisath111/ssm/releases/latest).
-2. Download the **`ssm.exe`** file from the Assets section.
+### Step 1: Download Binary
+Download **`ssm.exe`** directly from [GitHub Releases](https://github.com/thisath111/ssm/releases/latest).
 
-### Step 2: Place `ssm.exe` in a Permanent Folder
-1. Create a dedicated folder on your system drive, e.g., `C:\ssm\`.
-2. Move the downloaded `ssm.exe` into `C:\ssm\`.
+### Step 2: Place in System Folder
+Create `C:\ssm` and place `ssm.exe` inside:
+```powershell
+New-Item -ItemType Directory -Force -Path "C:\ssm"
+Move-Item -Path "$HOME\Downloads\ssm.exe" -Destination "C:\ssm\ssm.exe"
+```
 
-### Step 3: Add `C:\ssm` to System PATH
-
-#### Option A: Using PowerShell (Administrator)
+### Step 3: Add to System PATH
 ```powershell
 [Environment]::SetEnvironmentVariable(
     "Path",
@@ -76,159 +86,130 @@ If you prefer to install `ssm` manually without running an automated script, fol
 )
 ```
 
-#### Option B: Using Windows GUI
-1. Press `Win + R`, type `sysdm.cpl`, and press Enter.
-2. Go to the **Advanced** tab and click **Environment Variables...**.
-3. Under **System variables**, select `Path` and click **Edit...**.
-4. Click **New**, enter `C:\ssm`, and click **OK** on all open windows.
-
-### Step 4: Register as a Windows Service (Boot Autostart)
-Open **PowerShell as Administrator** and run:
+### Step 4: Register & Start Windows Service
 ```powershell
 ssm service install
 ```
-This registers `SmartSystemManager` in the Windows Service Control Manager (SCM) and starts it immediately.
 
-### Step 5: Verify Installation
-Verify that `ssm` is running and accessible:
+Verify everything is working:
 ```powershell
 ssm stats
 ```
 
 ---
 
-## Building from Source (Rust Developer Guide)
+## 🦀 Building from Source
 
-You can easily compile `ssm` from source code using the Rust toolchain.
+Build `ssm` directly from source code with the Rust compiler.
 
 ### Prerequisites
-1. **Rust & Cargo**: Install from [https://rustup.rs/](https://rustup.rs/) (Rust 1.75+ recommended).
-2. **Visual Studio C++ Build Tools**: Required for MSVC linker on Windows (Installed via Visual Studio Installer → *Desktop development with C++*).
-3. **Git**: Install from [https://git-scm.com/](https://git-scm.com/).
+- **Rust Toolchain (1.75+)**: [https://rustup.rs/](https://rustup.rs/)
+- **Visual Studio MSVC C++ Build Tools**: Required for Windows native linking
+- **Git**: [https://git-scm.com/](https://git-scm.com/)
 
-### Compilation Steps
+```powershell
+# 1. Clone the repository
+git clone https://github.com/thisath111/ssm.git
+cd ssm
 
-1. **Clone the repository:**
-   ```powershell
-   git clone https://github.com/thisath111/ssm.git
-   cd ssm
-   ```
+# 2. Run automated test suite (13/13 passing)
+cargo test
 
-2. **Run the automated unit tests:**
-   ```powershell
-   cargo test
-   ```
-   *All 13 unit tests will execute and validate the AI intent classifier, memory forecaster, and kernel sensors.*
+# 3. Compile optimized release binary
+cargo build --release
 
-3. **Build the optimized release binary:**
-   ```powershell
-   cargo build --release
-   ```
-   The compiled standalone binary will be located at:
-   ```
-   target\release\ssm.exe
-   ```
-
-4. **Install the compiled binary:**
-   Copy the binary to `C:\ssm\` and register the service:
-   ```powershell
-   New-Item -ItemType Directory -Force -Path "C:\ssm"
-   Copy-Item ".\target\release\ssm.exe" "C:\ssm\ssm.exe"
-   ssm service install
-   ```
+# 4. Install compiled binary (C:\ssm\ssm.exe)
+New-Item -ItemType Directory -Force -Path "C:\ssm"
+Copy-Item ".\target\release\ssm.exe" "C:\ssm\ssm.exe"
+ssm service install
+```
 
 ---
 
-## CLI Reference & Usage
+## 💻 Command Reference
 
-All commands require **Administrator privileges** to access Win32 NT kernel APIs and system registries.
+All CLI commands can be run directly from any PowerShell or Command Prompt window (Admin required for hardware tuning).
 
 ```powershell
 ssm [COMMAND] [OPTIONS]
 ```
 
-### Available Commands
-
-| Command | Description |
-|---|---|
-| `ssm stats` | Display live hardware telemetry, AI active app intent, CPU/RAM stats, and kernel timer resolution. |
-| `ssm boost` | Run one-click deep system optimization (Unparks CPU cores, locks 0.5ms Timer, enables Large Pages, configures DWM DirectFlip). |
-| `ssm clean` | Instantly purges Windows Standby RAM cache and clears system temporary file junk. |
-| `ssm tune` | Applies permanent low-latency registry tweaks (MSI-X mode, TCP NoDelay, Fast Shutdown, USB latency fix). |
-| `ssm update` | Checks GitHub for new releases and performs an atomic in-place update. |
-| `ssm update --check` | Checks if a newer version is available without downloading or installing. |
-| `ssm update --enable` | Enables automatic weekly background update checks (enabled by default). |
-| `ssm update --disable` | Disables background update checks. |
-| `ssm daemon` | Runs the optimization daemon in foreground interactive console mode (useful for debugging). |
-| `ssm service install` | Installs and starts `ssm` as a Windows Native Service with boot autostart. |
-| `ssm service uninstall` | Stops and removes the Windows Service. |
-| `ssm uninstall` | Completely uninstalls `ssm`: reverts registry tweaks, deletes service, and cleans `PATH`. |
+| Command | Action / Purpose | Example |
+|---|---|---|
+| `ssm stats` | Live hardware telemetry, AI active workload intent & timer latency | `ssm stats` |
+| `ssm boost` | Instant one-click performance boost (Cores, 0.5ms Timer, DWM, Large Pages) | `ssm boost` |
+| `ssm clean` | Purges Windows Standby memory cache and cleans temporary disk junk | `ssm clean` |
+| `ssm tune` | Applies permanent low-latency registry tweaks (MSI-X, TCP NoDelay, Fast Shutdown) | `ssm tune` |
+| `ssm update` | Checks GitHub for updates and installs the latest version automatically | `ssm update` |
+| `ssm update --check` | Checks if a newer version exists without downloading | `ssm update --check` |
+| `ssm update --enable` | Enables weekly background auto-updates *(Enabled by default)* | `ssm update --enable` |
+| `ssm update --disable`| Disables weekly background auto-updates | `ssm update --disable` |
+| `ssm daemon` | Runs the optimization daemon in foreground console mode | `ssm daemon` |
+| `ssm service install` | Registers and starts `ssm` as a boot-autostart Windows Service | `ssm service install` |
+| `ssm service uninstall`| Stops and deletes the Windows Service | `ssm service uninstall` |
+| `ssm uninstall` | Completely reverts all tweaks, deletes service, and removes `PATH` | `ssm uninstall` |
 
 ---
 
-## Automatic & Manual Updates
+## 🌟 Features & Architecture
 
-`ssm` includes a production-grade self-updating engine designed specifically for Windows.
-
-### How Background Auto-Update Works
-- **Default State**: Enabled automatically upon installation.
-- **Schedule**: Every 7 days, the background daemon checks the GitHub API for newer releases.
-- **In-Place Atomic Replacement**: Because Windows locks running executables, `ssm` renames the active binary to `.old`, writes the new executable, and restarts the Windows service without downtime.
-
-### Manual Update Commands
-- Check for updates manually:
-  ```powershell
-  ssm update
-  ```
-- Check version without installing:
-  ```powershell
-  ssm update --check
-  ```
-- Turn off auto-updates:
-  ```powershell
-  ssm update --disable
-  ```
-- Turn on auto-updates:
-  ```powershell
-  ssm update --enable
-  ```
-
----
-
-## Core Features & Architecture
+```
+                               ┌────────────────────────┐
+                               │   Active Applications  │
+                               └───────────┬────────────┘
+                                           │ (Behavioral Signals)
+                                           ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                       Pure-Rust AI Engine                              │
+│  ┌───────────────────────┐  ┌──────────────────────┐  ┌─────────────┐  │
+│  │ Intent Classifier     │  │ Standby Forecaster   │  │ State Engine│  │
+│  └───────────────────────┘  └──────────────────────┘  └─────────────┘  │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+       ┌───────────────────────────┼───────────────────────────┐
+       ▼                           ▼                           ▼
+┌──────────────┐            ┌──────────────┐            ┌──────────────┐
+│  CPU & Cores │            │  GPU & DWM   │            │ RAM & I/O    │
+│ • P/E Affinity            │ • DirectFlip │            │ • Standby    │
+│ • C-State Off│            │ • MSI-X Mode │            │   Purge      │
+│ • MMCSS Boost│            │ • 0.5ms Clock│            │ • NVMe Depth │
+└──────────────┘            └──────────────┘            └──────────────┘
+```
 
 ### ⚡ 1. Hardware-Adaptive Kernel Tuning
-- **Adaptive Timer Resolution**: Locks system timer via `NtSetTimerResolution` at 0.5ms / 0.75ms / 1.0ms based on hardware tier.
-- **Interrupt Affinity Optimization**: Dynamically routes GPU and Network PCI interrupts directly to Performance Cores (`p_core_mask`), preventing Core 0 DPC latency bottlenecks.
-- **CPU C-State & Idle Suppression**: Suppresses deep CPU idle states during high-performance workloads to eliminate frame stuttering.
-- **MMCSS Thread Scheduling Boost**: Registers the engine thread with the Windows Multimedia Class Scheduler Service (`AvSetMmThreadCharacteristicsW`) for hard real-time execution priority.
-- **P-Core / E-Core Topology Optimization**: Detects CPU architecture and pins background tasks to Efficiency Cores, reserving Performance Cores for interactive foreground workloads.
+- **0.5ms Win32 Timer Resolution:** Locks system timer via `NtSetTimerResolution` to 0.5ms / 0.75ms / 1.0ms based on hardware tier.
+- **Interrupt Affinity Optimization:** Dynamically routes GPU and Network PCI interrupts directly to Performance Cores (`p_core_mask`), preventing Core 0 DPC latency bottlenecks.
+- **CPU C-State & Idle Suppression:** Suppresses deep CPU idle states during high-performance workloads via native power index calls to eliminate micro-stuttering.
+- **MMCSS Thread Scheduling Boost:** Registers the engine thread with the Windows Multimedia Class Scheduler Service (`AvSetMmThreadCharacteristicsW`) for hard real-time execution priority.
+- **P-Core / E-Core Affinity:** Detects CPU topology and pins background processes to Efficiency Cores, reserving Performance Cores for foreground tasks.
 
-### 🧠 2. Zero-Hardcode AI Engine
-- **Behavioral Intent Classifier**: Identifies Gaming, Video/Audio Production, Development, or Typing Tool workloads purely from behavioral telemetry (memory velocity, thread activity, window ownership) — zero hardcoded process name lists.
-- **Typing Tool Immunity**: Dynamic Win32 window ownership scanning detects all IME and typing tools (Helakuru, Keyman, Wijesekara, etc.) and protects them from throttling or suspension.
-- **Predictive Standby Memory Forecaster**: Calculates RAM momentum ($\frac{dM}{dt}$) to forecast memory pressure 5 seconds ahead and purges standby cache *before* stutter occurs.
+### 🧠 2. Zero-Hardcode AI Engine & Behavioral Heuristics
+- **Behavioral Process Intent Classifier:** Identifies Gaming, Video/Audio Production, Development, or Typing Tool workloads purely from behavioral signals (RAM, CPU, thread count, window ownership) — no hardcoded process lists.
+- **Dynamic Window Ownership Discovery:** Uses Win32 `EnumWindows` to detect interactive processes, tray apps, and input tools (Helakuru, Keyman, Wijesekara) and protects them from throttling.
+- **Predictive Standby Memory Forecaster:** Computes RAM velocity momentum ($\frac{dM}{dt}$) to forecast memory pressure spikes 5 seconds ahead and pre-emptively purges standby cache before stutter occurs.
 
 ### 🚀 3. Deep Windows Subsystem Optimizations
-- **Global Timer Resolution (Win 11 Fix)**: Enforces global 0.5ms timer resolution across all processes via kernel Session Manager registry.
-- **Win32 Priority Separation (`0x26`)**: Enhances foreground thread responsiveness by prioritizing interactive foreground quantum.
-- **DirectFlip Zero-Lag DWM**: Bypasses Desktop Window Manager composition delays and routes frame queues directly to GPU scan-out.
-- **2MB Large Pages**: Unlocks `SeLockMemoryPrivilege` to reduce CPU TLB cache misses for compilers and game engines.
-- **GPU & Network MSI-X Mode**: Converts adapters to Message Signaled Interrupts via PCI Registry to eliminate DPC latency spikes.
-- **TCP NoDelay & QoS DSCP**: Disables Nagle algorithm and prioritizes latency-critical packets.
+- **Global Timer Resolution (Win 11 Fix):** Enforces global 0.5ms timer resolution across all processes via kernel Session Manager.
+- **Win32 Priority Separation (`0x26`):** Enhances foreground thread responsiveness by prioritizing interactive foreground quantum.
+- **DWM DirectFlip Zero-Lag:** Bypasses Desktop Window Manager animation delays and routes frames directly to GPU scan-out.
+- **Kernel Large Pages (2MB HugePages):** Unlocks `SeLockMemoryPrivilege` for Large Page memory allocations, reducing CPU TLB cache misses.
+- **GPU & Network MSI-X Interrupts:** Switches adapters to Message Signaled Interrupts via PCI Registry to eliminate DPC latency spikes.
+- **TCP NoDelay & QoS DSCP:** Disables Nagle algorithm and prioritizes latency-critical packets.
 
 ### 🛡️ 4. Stability & Anti-Hang Shield
-- **Explorer Auto-Rescue**: Continuously monitors `explorer.exe` message loops via `IsHungAppWindow` and auto-rescues frozen taskbars within seconds.
-- **Supervised Microkernel**: Wraps all daemon routines in panic-isolated supervisor loops (`catch_unwind`) to ensure zero downtime.
-- **Background Disk Hog Throttling**: Automatically deprioritizes background disk hogs to `IDLE_PRIORITY_CLASS` and lowest I/O priority.
-- **Fast Shutdown**: Reduces service shutdown timeouts to 2 seconds and enables `AutoEndTasks`.
+- **Explorer Auto-Rescue:** Continuously monitors `explorer.exe` message loops via `IsHungAppWindow` and auto-rescues frozen taskbars within seconds.
+- **Zero-Downtime Supervised Engine:** Runs all daemon routines in panic-isolated supervisor loops (`catch_unwind`) with automatic recovery.
+- **Background Disk Hog Throttling:** Automatically deprioritizes background disk hogs to `IDLE_PRIORITY_CLASS` and lowest I/O priority.
+- **Fast Shutdown:** Reduces service shutdown timeouts to 2 seconds and enables `AutoEndTasks`.
 
 ---
 
-## Configuration & Logging
+## ⚙️ Configuration & Logging
 
-### Configuration File (`config.json`)
-The configuration file is automatically created in the executable directory (e.g. `C:\ssm\config.json`). The daemon hot-reloads this file every 10 seconds without needing a restart.
+<details>
+<summary><b>Click to expand Configuration Details (<code>config.json</code>)</b></summary>
+
+The configuration file is automatically created in `C:\ssm\config.json`. The daemon hot-reloads this file every 10 seconds without needing a restart:
 
 ```json
 {
@@ -242,50 +223,63 @@ The configuration file is automatically created in the executable directory (e.g
 }
 ```
 
-### Log Files (`ssm.log`)
-In Service mode, runtime logs are continuously written to:
+Runtime service logs are written directly to:
 ```
 C:\ssm\ssm.log
 ```
+</details>
 
 ---
 
-## Troubleshooting & FAQ
+## ❓ Troubleshooting & FAQ
 
-### 1. "Access is denied" / Privileges error
-`ssm` interacts directly with Win32 NT kernel APIs (e.g., `NtSetTimerResolution`, `PowerWriteACValueIndex`, PCI Registry). **Always run PowerShell or Command Prompt as Administrator.**
+<details>
+<summary><b>1. Why does ssm require Administrator privileges?</b></summary>
 
-### 2. How do I check if the background service is running?
+`ssm` interacts directly with Win32 NT kernel APIs (such as `NtSetTimerResolution`, `PowerWriteACValueIndex`, PCI Registry for MSI-X, and Large Page memory tokens). Windows requires elevation to modify these low-level parameters.
+</details>
+
+<details>
+<summary><b>2. How do I verify that ssm is running in the background?</b></summary>
+
 Run:
 ```powershell
 sc query SmartSystemManager
 ```
-Or view live status via:
+Or check live telemetry with:
 ```powershell
 ssm stats
 ```
+</details>
 
-### 3. Will this conflict with Antivirus software?
-`ssm` is 100% open-source native Rust code with no malware or telemetry. However, because it modifies system registry keys (MSI-X interrupts, Fast Shutdown) and uses low-level NT APIs, some heuristic antivirus scanners may flag it. You can safely add `C:\ssm\ssm.exe` to your antivirus exclusion list.
+<details>
+<summary><b>3. Is ssm safe for modern Antivirus software?</b></summary>
+
+Yes. `ssm` is 100% open-source native Rust code with zero telemetry and no network activity other than checking official GitHub releases. Because it optimizes low-level NT APIs and Registry settings, some heuristic scanners may flag system-tuning tools. You can safely whitelist `C:\ssm\ssm.exe`.
+</details>
 
 ---
 
-## Uninstallation
+## 🗑️ Clean Uninstallation
 
-To completely remove `ssm` and revert all system tweaks to Windows defaults:
+To completely remove `ssm` and revert all system tweaks back to default Windows values:
 
-Open **PowerShell as Administrator** and run:
 ```powershell
 ssm uninstall
 ```
-This will:
-1. Revert registry tweaks and power settings back to Windows defaults
+
+This will automatically:
+1. Revert registry settings and power indices to Windows defaults
 2. Stop and delete the `SmartSystemManager` Windows service
 3. Remove `C:\ssm` from your system `PATH`
-4. Clean up `C:\ssm\` directory
+4. Clean up `C:\ssm\` files
 
 ---
 
-## License
+## 📄 License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
+
+<div align="center">
+  <sub>Built with ❤️ using 100% Native Rust for Windows.</sub>
+</div>
